@@ -1,0 +1,86 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Environment variables & virtualenvs
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE & Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# BCAPM Data Pipeline Outputs (Generated via python run_pipeline.py)
+# Keep directory structure via .gitkeep, ignore large auto-generated interim & processed CSVs
+data/raw/*
+!data/raw/.gitkeep
+data/interim/*.csv
+!data/interim/.gitkeep
+data/processed/*.csv
+!data/processed/.gitkeep
+
+# Ignore large log files
+*.log
+
+# Keep models directory, ignore large model binaries if needed (or uncomment to track)
+# models/*.joblib
+!models/.gitkeep

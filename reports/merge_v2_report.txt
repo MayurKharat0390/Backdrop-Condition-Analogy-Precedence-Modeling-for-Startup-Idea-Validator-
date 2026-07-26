@@ -1,0 +1,10 @@
+==================================================
+BCAPM STAGE 2 MERGE REPORT
+==================================================
+Total Input V1 Records: 65,930
+Total Output V2 Records: 65,930
+Total Features: 28
+Internet Penetration Coverage: 49,319 / 65,930
+Country HDI Coverage: 0 / 65,930
+Macro Failure Rate Coverage: 0 / 65,930
+==================================================
