@@ -4,14 +4,60 @@ An end-to-end production Machine Learning pipeline for predicting startup succes
 
 ---
 
-## Project Structure
+## 🚨 Problem Statement
+
+* **High Failure Rate**: Over 90% of technology startups fail within their first 5 years, leading to billions of dollars in misallocated venture capital and entrepreneurial failure.
+* **Flaws of Naive Category Matching**: Traditional startup assessment tools evaluate new ventures based solely on superficial industry tags (e.g. comparing a new SaaS tool to 1990s legacy software), missing cross-industry structural growth playbooks.
+* **Neglect of Macroeconomic Backdrop**: Existing models fail to account for external macro environmental conditions at founding—such as national internet penetration rates, human development index (HDI), tax/bureaucracy friction, and macro failure rates.
+* **Lack of Explainability**: Standard machine learning classifiers act as black boxes, giving a prediction score without identifying *which historical startups succeeded or failed under identical conditions*.
+
+---
+
+## 🛡️ Proposed Solution: BCAPM Architecture
+
+**Backdrop-Conditioned Analogy Precedent Modeling (BCAPM)** addresses these challenges by combining machine learning success classification with explainable precedent retrieval:
+
+1. **Multi-Source Data Fusion**: Harmonizes micro-level firmographics (Crunchbase, Y Combinator, Hacker News, CAX) with World Bank macroeconomic backdrop indicators across 65,930 historical startups.
+2. **Domain-Specific Feature Engineering**: Constructs composite indices (`BackdropScore`, `MacroStartupClimateScore`, `FundingDensity`, `MarketPopularityScore`) capturing environmental readiness and traction velocity.
+3. **Hybrid Ensemble Feature Selection**: Combines Variance Threshold filtering, Pearson Correlation, Mutual Information classification, and Random Forest Gini Impurity reduction into an unbiased **Composite Rank Score**.
+4. **Multi-Model ML Benchmarking**: Evaluates 5 algorithms (Logistic Regression, Decision Tree, Random Forest, ANN, and Gradient Boosting), achieving **90.55% Accuracy** and **0.7034 ROC-AUC**.
+5. **Analogy Precedent Engine**: Utilizes 70-dimensional Vector Cosine Similarity to find the Top-5 historical startup precedents, outputting explainable precedent-conditioned success probabilities.
+
+---
+
+## 📊 Model Evaluation Performance
+
+| Model | Accuracy | Precision | Recall | F1 Score | ROC AUC |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Gradient Boosting** | **90.55%** | **90.66%** | **99.87%** | **0.9504** | **0.7034** |
+| **Random Forest** | **90.62%** | **90.62%** | **100.00%** | **0.9508** | **0.6927** |
+| **Decision Tree** | 90.50% | 90.63% | 99.83% | 0.9501 | 0.6757 |
+| **ANN (Neural Network)** | 90.19% | 90.67% | 99.40% | 0.9483 | 0.6669 |
+| **Logistic Regression** | 90.62% | 90.62% | 100.00% | 0.9508 | 0.6395 |
+
+---
+
+## 🔍 Hybrid Feature Selection Methodology
+
+Rather than relying on a single feature selection filter (which can introduce algorithm bias), `src/07_feature_selection.py` implements a 4-stage **Hybrid Ensemble Framework**:
+
+1. **Variance Threshold Filtering**: Removes quasi-constant features ($\text{Variance} < 0.01$).
+2. **Pearson Correlation ($r$)**: Measures linear relationships with target success.
+3. **Mutual Information (`mutual_info_classif`)**: Captures non-linear entropy dependencies ($I(X; Y) = H(X) - H(X|Y)$).
+4. **Random Forest Gini Impurity**: Evaluates tree-split impurity reduction across decision nodes.
+
+**Composite Rank Score**: $\text{Composite Rank} = \frac{\text{RF\_Rank} + \text{MI\_Rank} + \text{Corr\_Rank}}{3.0}$
+
+---
+
+## 📁 Project Structure
 
 ```
 BCAMP/
 ├── DATASET_ANALYSIS.md          # Comprehensive catalog & audit of all 37 raw CSV datasets
 ├── PIPELINE_DESIGN.md           # In-depth 4-stage data pipeline architecture
 ├── Final.zip                    # Source raw dataset zip archive
-├── run_pipeline.py              # Top-level CLI orchestrator running stages 1-4
+├── run_pipeline.py              # Top-level CLI orchestrator running stages 1-10
 ├── requirements.txt             # Project dependencies
 ├── .gitignore                   # Git ignore settings
 ├── README.md                    # Project documentation
@@ -41,25 +87,14 @@ BCAMP/
     ├── 06_preprocessing.py      # One-hot encoding & continuous feature scaling
     ├── 07_feature_selection.py  # Pearson, Mutual Info & Random Forest feature ranking
     ├── 08_eda.py                # Exploratory data visualization suite
-    ├── 09_train_models.py       # Training Logistic Regression, DT, RF, XGBoost & ANN
-    └── 10_similarity_engine.py  # BCAPM Cosine Similarity Analogy Precedent Engine
+    ├── 09_train_models.py       # Training Logistic Regression, DT, RF, Gradient Boosting & ANN
+    ├── 10_similarity_engine.py  # BCAPM Cosine Similarity Analogy Precedent Engine
+    └── similarity_engine.py    # Clean Python package import wrapper
 ```
 
 ---
 
-## Data Engineering Pipeline Architecture
-
-The pipeline processes raw data through four distinct evolutionary tiers:
-
-1. **Raw Datasets (`data/raw/`)**: Ingests Crunchbase, Y Combinator, Hacker News, CAX, and World Bank datasets.
-2. **Stage 1: `BCAPM_Master_V1.csv`**: Resolves entity names and consolidates micro-level startup signals (firmographics, founders, funding rounds, sentiment).
-3. **Stage 2: `BCAPM_Master_V2.csv`**: Embeds macroeconomic environmental backdrop features (World Bank internet penetration by founding year, country HDI, policy support, macro failure rates).
-4. **Stage 3: `BCAPM_Clean.csv`**: Deduplicates records, enforces missing value imputation (sector median + global fallback), and cleans data types.
-5. **Stage 4: `BCAPM_Preprocessed.csv`**: Generates engineered features (`CapitalEfficiency`, `BackdropScore`, `MacroStartupClimateScore`, etc.), applies one-hot encoding, and normalizes continuous features via `StandardScaler`.
-
----
-
-## Quick Start & Execution
+## 🚀 Quick Start & Execution
 
 ### 1. Installation
 Ensure Python 3.10+ is installed. Install required packages:
@@ -67,51 +102,24 @@ Ensure Python 3.10+ is installed. Install required packages:
 pip install -r requirements.txt
 ```
 
-### 2. Run Complete Data Pipeline
-Execute the full 4-stage pipeline:
+### 2. Run Complete Data & ML Pipeline
+Execute the full 10-stage pipeline:
 ```bash
 python run_pipeline.py
 ```
 
-### 3. Run Individual Pipeline Stages (`src/`)
+### 3. Query the BCAPM Precedent Engine (CLI)
 
 ```bash
-# 1. Audit Raw Datasets
-python src/01_collect_data.py
-
-# 2. Merge Micro Startup Datasets -> BCAPM_Master_V1.csv
-python src/02_merge_v1.py
-
-# 3. Merge Macro Backdrop Indicators -> BCAPM_Master_V2.csv
-python src/03_merge_v2.py
-
-# 4. Clean & Impute Data -> BCAPM_Clean.csv
-python src/04_clean_data.py
-
-# 5. Domain Feature Engineering -> BCAPM_Engineered.csv
-python src/05_feature_engineering.py
-
-# 6. ML Preprocessing & Scaling -> BCAPM_Preprocessed.csv
-python src/06_preprocessing.py
-
-# 7. Feature Selection & Importance Ranking
-python src/07_feature_selection.py
-
-# 8. Exploratory Data Analysis & Chart Generation
-python src/08_eda.py
-
-# 9. Train & Evaluate ML Models (LR, DT, RF, XGBoost, ANN)
-python src/09_train_models.py
-
-# 10. Query the BCAPM Analogy Precedent Engine
-python src/10_similarity_engine.py --company "Dropbox" --top_k 5
+# Query historical startup in dataset (e.g. Airbnb, Dropbox, Uber)
+python src/10_similarity_engine.py --company "Airbnb" --top_k 5
 ```
 
 ---
 
-## Precedent Analogy Engine Usage
+## 💻 Python API Usage
 
-To query historical precedent analogs for any target startup:
+To query historical precedent analogs in Python scripts or Jupyter Notebooks:
 
 ```python
 from src.similarity_engine import BCAPMSimilarityEngine
@@ -126,10 +134,11 @@ for analog in results["Top_K_Analogs"]:
 
 ---
 
-## Verification & Outputs
+## 📜 Verification & Outputs
 
 - **Dataset Audit Report**: [DATASET_ANALYSIS.md](file:///d:/PROJECTS/BCAPM/BCAMP/DATASET_ANALYSIS.md)
 - **Pipeline Architecture Specs**: [PIPELINE_DESIGN.md](file:///d:/PROJECTS/BCAPM/BCAMP/PIPELINE_DESIGN.md)
+- **Feature Selection Ranks**: `reports/SelectedFeatures.csv`
 - **Model Evaluation Metrics**: `reports/model_comparison.csv`
 - **EDA Visualizations**: `reports/*.png`
 - **Trained Model Artifacts**: `models/*.joblib`
