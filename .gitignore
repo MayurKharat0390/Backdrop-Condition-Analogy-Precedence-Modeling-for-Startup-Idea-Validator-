@@ -69,14 +69,13 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
-# BCAPM Data Pipeline Outputs (Generated via python run_pipeline.py)
-# Keep directory structure via .gitkeep, ignore large auto-generated interim & processed CSVs
-data/raw/*
-!data/raw/.gitkeep
-data/interim/*.csv
-!data/interim/.gitkeep
-data/processed/*.csv
-!data/processed/.gitkeep
+# BCAPM Data Pipeline Outputs - track data files as requested
+# data/raw/*
+# !data/raw/.gitkeep
+# data/interim/*.csv
+# !data/interim/.gitkeep
+# data/processed/*.csv
+# !data/processed/.gitkeep
 
 # Ignore large log files
 *.log
