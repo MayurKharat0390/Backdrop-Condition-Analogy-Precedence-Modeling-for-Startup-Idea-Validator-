@@ -6,7 +6,7 @@ Clean, professional, window-wise / workflow-guided architecture:
 - Window 2: Executive Investment Memorandum & Precedent Terminal (Tabbed Workbenches)
 - Window 3: Fund Deal-Room Capacity Allocator (Top-K Portfolio Construction)
 - Interactive Radar Chart (Chart.js), 2D Sensitivity Grid, and Monte Carlo Return Curve
-- Zero clutter: spacious, focused views with seamless step transitions
+- Zero clutter: spacious, focused views with seamless step transitions and 0ms latency
 
 Usage:
     python app/web_app.py --port 8080
@@ -14,6 +14,7 @@ Usage:
 
 import sys
 import json
+import os
 from pathlib import Path
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import argparse
@@ -39,32 +40,36 @@ HTML_PAGE = """<!DOCTYPE html>
     <title>BCAPM — Institutional Venture Underwriting & Precedent Terminal</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg-base: #06080d;
-            --bg-surface: #0b0f19;
-            --bg-card: rgba(13, 18, 32, 0.88);
-            --bg-elevated: rgba(20, 28, 48, 0.75);
-            --border-subtle: rgba(255, 255, 255, 0.08);
-            --border-active: rgba(6, 182, 212, 0.5);
+            --bg-base: #040711;
+            --bg-surface: #0a0f1d;
+            --bg-card: rgba(12, 18, 33, 0.82);
+            --bg-elevated: rgba(18, 27, 49, 0.88);
+            --border-subtle: rgba(255, 255, 255, 0.07);
+            --border-highlight: rgba(255, 255, 255, 0.14);
+            --border-active: rgba(6, 182, 212, 0.6);
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --text-muted: #64748b;
             --accent-cyan: #06b6d4;
+            --accent-cyan-hover: #22d3ee;
             --accent-blue: #3b82f6;
             --accent-indigo: #6366f1;
             --accent-emerald: #10b981;
             --accent-rose: #f43f5e;
             --accent-amber: #f59e0b;
             --accent-purple: #a855f7;
-            --glow-cyan: 0 0 35px rgba(6, 182, 212, 0.25);
-            --glow-emerald: 0 0 35px rgba(16, 185, 129, 0.25);
-            --glow-rose: 0 0 35px rgba(244, 63, 94, 0.25);
+            --glow-cyan: 0 0 30px rgba(6, 182, 212, 0.28);
+            --glow-emerald: 0 0 35px rgba(16, 185, 129, 0.28);
+            --glow-rose: 0 0 35px rgba(244, 63, 94, 0.28);
+            --glow-card: 0 20px 45px -15px rgba(0, 0, 0, 0.75);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        
         body {
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: var(--bg-base);
@@ -74,20 +79,30 @@ HTML_PAGE = """<!DOCTYPE html>
             flex-direction: column;
             overflow-x: hidden;
             background-image: 
-                radial-gradient(circle at 10% 10%, rgba(6, 182, 212, 0.08) 0%, transparent 45%),
-                radial-gradient(circle at 90% 15%, rgba(99, 102, 241, 0.07) 0%, transparent 40%),
-                radial-gradient(circle at 50% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+                radial-gradient(circle at 12% 10%, rgba(6, 182, 212, 0.09) 0%, transparent 42%),
+                radial-gradient(circle at 88% 18%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.06) 0%, transparent 45%),
+                radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 28px 28px;
+            background-position: 0 0, 0 0, 0 0, 0 0;
+            letter-spacing: -0.01em;
         }
-        
+
+        /* CUSTOM SCROLLBAR */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(6, 182, 212, 0.4); }
+
         /* HEADER */
         header {
-            padding: 1rem 2.5rem;
+            padding: 0.9rem 2.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid var(--border-subtle);
-            backdrop-filter: blur(20px);
-            background: rgba(7, 9, 14, 0.92);
+            backdrop-filter: blur(24px);
+            background: rgba(6, 9, 17, 0.88);
             position: sticky;
             top: 0;
             z-index: 1000;
@@ -96,73 +111,84 @@ HTML_PAGE = """<!DOCTYPE html>
             display: flex;
             align-items: center;
             gap: 1rem;
+            text-decoration: none;
+            cursor: pointer;
         }
         .logo-mark {
             background: linear-gradient(135deg, var(--accent-cyan), var(--accent-indigo));
             color: #fff;
             font-family: 'Outfit', sans-serif;
             font-weight: 900;
-            font-size: 1.2rem;
-            padding: 0.4rem 0.85rem;
+            font-size: 1.15rem;
+            padding: 0.42rem 0.85rem;
             border-radius: 10px;
-            letter-spacing: 0.05em;
-            box-shadow: 0 4px 18px rgba(6, 182, 212, 0.35);
+            letter-spacing: 0.06em;
+            box-shadow: 0 4px 20px rgba(6, 182, 212, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .logo-text h1 {
             font-family: 'Outfit', sans-serif;
             font-weight: 700;
-            font-size: 1.2rem;
+            font-size: 1.15rem;
             letter-spacing: -0.02em;
-            background: linear-gradient(to right, #ffffff, #94a3b8);
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         .logo-text p {
-            font-size: 0.72rem;
+            font-size: 0.7rem;
             color: var(--text-muted);
-            letter-spacing: 0.03em;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-weight: 600;
         }
 
         /* TOP WINDOW WORKSPACE SWITCHER */
         .window-nav {
             display: flex;
-            background: rgba(255, 255, 255, 0.04);
-            padding: 0.3rem;
-            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.28rem;
+            border-radius: 14px;
             border: 1px solid var(--border-subtle);
-            gap: 0.3rem;
+            gap: 0.25rem;
         }
         .window-btn {
             background: transparent;
-            border: none;
+            border: 1px solid transparent;
             color: var(--text-secondary);
-            padding: 0.5rem 1.2rem;
-            border-radius: 8px;
+            padding: 0.48rem 1.1rem;
+            border-radius: 10px;
             font-size: 0.82rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.45rem;
+        }
+        .window-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.04);
         }
         .window-btn.active {
-            background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(99, 102, 241, 0.3));
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.22), rgba(99, 102, 241, 0.28));
             color: #fff;
-            border: 1px solid var(--accent-cyan);
-            box-shadow: 0 2px 10px rgba(6, 182, 212, 0.2);
+            border-color: rgba(6, 182, 212, 0.45);
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.2);
         }
 
         .header-stats {
             display: flex;
             align-items: center;
-            gap: 1.2rem;
+            gap: 0.9rem;
         }
         .stat-badge {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            background: rgba(255, 255, 255, 0.04);
+            gap: 0.45rem;
+            background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--border-subtle);
             padding: 0.35rem 0.85rem;
             border-radius: 20px;
@@ -176,40 +202,49 @@ HTML_PAGE = """<!DOCTYPE html>
             border-radius: 50%;
             background-color: var(--accent-emerald);
             box-shadow: 0 0 8px var(--accent-emerald);
-            animation: pulse 2s infinite;
+            animation: pulse 2s infinite ease-in-out;
         }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
 
         /* MAIN CONTAINER */
         main {
             flex: 1;
             width: 100%;
             margin: 0 auto;
-            padding: 2.2rem 2.5rem;
+            padding: 2rem 2.5rem;
         }
         .window-pane {
             display: none;
             width: 100%;
+            animation: paneFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .window-pane.active {
             display: block;
         }
-
-        /* WINDOW 1: FORM WIZARD VIEW */
-        .form-window-wrap {
-            max-width: 960px;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            gap: 1.8rem;
+        @keyframes paneFadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
         }
+
+        /* CARD PANELS */
         .card-panel {
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
+            border-top: 1px solid var(--border-highlight);
             border-radius: 20px;
             padding: 2.2rem;
             backdrop-filter: blur(24px);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            box-shadow: var(--glow-card);
+            transition: border-color 0.25s;
+        }
+
+        /* WINDOW 1: FORM WIZARD VIEW */
+        .form-window-wrap {
+            max-width: 980px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.6rem;
         }
 
         /* PRESETS BAR */
@@ -219,22 +254,24 @@ HTML_PAGE = """<!DOCTYPE html>
             justify-content: space-between;
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid var(--border-subtle);
+            border-top: 1px solid var(--border-highlight);
             padding: 0.85rem 1.4rem;
-            border-radius: 14px;
+            border-radius: 16px;
             flex-wrap: wrap;
             gap: 0.8rem;
         }
         .presets-list {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.45rem;
             flex-wrap: wrap;
+            align-items: center;
         }
         .preset-pill {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.04);
             border: 1px solid var(--border-subtle);
             color: var(--text-secondary);
             font-size: 0.76rem;
-            padding: 0.4rem 0.85rem;
+            padding: 0.38rem 0.85rem;
             border-radius: 20px;
             cursor: pointer;
             transition: all 0.2s;
@@ -244,6 +281,18 @@ HTML_PAGE = """<!DOCTYPE html>
             background: rgba(6, 182, 212, 0.15);
             border-color: var(--accent-cyan);
             color: var(--accent-cyan);
+            transform: translateY(-1px);
+        }
+        .preset-pill-instant {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(99, 102, 241, 0.3));
+            border: 1px solid var(--accent-cyan);
+            color: #fff;
+            font-weight: 700;
+        }
+        .preset-pill-instant:hover {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-indigo));
+            color: #000;
+            box-shadow: 0 2px 14px rgba(6, 182, 212, 0.4);
         }
 
         /* STEPPER BREADCRUMB HEADER */
@@ -251,17 +300,17 @@ HTML_PAGE = """<!DOCTYPE html>
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
+            margin-bottom: 2.2rem;
             position: relative;
         }
         .stepper-header::before {
             content: '';
             position: absolute;
-            top: 50%;
+            top: 19px;
             left: 5%;
             right: 5%;
             height: 2px;
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.06);
             z-index: 1;
         }
         .step-item {
@@ -270,45 +319,52 @@ HTML_PAGE = """<!DOCTYPE html>
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 0.4rem;
+            gap: 0.45rem;
             cursor: pointer;
             background: var(--bg-surface);
             padding: 0 0.8rem;
+            user-select: none;
         }
         .step-circle {
             width: 38px;
             height: 38px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.04);
             border: 2px solid var(--border-subtle);
             display: flex;
             align-items: center;
             justify-content: center;
             font-family: 'Outfit', sans-serif;
             font-weight: 700;
-            font-size: 0.85rem;
+            font-size: 0.86rem;
             color: var(--text-muted);
-            transition: all 0.25s;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .step-label {
             font-size: 0.72rem;
             font-weight: 600;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.04em;
             transition: color 0.25s;
+        }
+        .step-item:hover .step-circle {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
         }
         .step-item.active .step-circle {
             background: var(--accent-cyan);
             border-color: var(--accent-cyan);
-            color: #000;
-            box-shadow: 0 0 16px rgba(6, 182, 212, 0.5);
+            color: #040711;
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.55);
+            transform: scale(1.06);
         }
         .step-item.active .step-label {
             color: #fff;
+            font-weight: 700;
         }
         .step-item.completed .step-circle {
-            background: rgba(16, 185, 129, 0.2);
+            background: rgba(16, 185, 129, 0.18);
             border-color: var(--accent-emerald);
             color: var(--accent-emerald);
         }
@@ -320,8 +376,8 @@ HTML_PAGE = """<!DOCTYPE html>
         .step-pane {
             display: none;
             flex-direction: column;
-            gap: 1.5rem;
-            animation: fadeIn 0.3s ease;
+            gap: 1.6rem;
+            animation: fadeIn 0.25s ease;
         }
         .step-pane.active {
             display: flex;
@@ -330,25 +386,29 @@ HTML_PAGE = """<!DOCTYPE html>
 
         .step-pane-header {
             border-bottom: 1px solid var(--border-subtle);
-            padding-bottom: 1rem;
+            padding-bottom: 1.1rem;
         }
         .step-pane-header h3 {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.35rem;
+            font-size: 1.4rem;
             font-weight: 700;
             color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
         }
         .step-pane-header p {
-            font-size: 0.82rem;
+            font-size: 0.84rem;
             color: var(--text-muted);
-            margin-top: 0.2rem;
+            margin-top: 0.25rem;
+            line-height: 1.4;
         }
 
         /* FORM INPUTS */
         .form-grid-2 {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 1.2rem;
+            gap: 1.4rem;
         }
         .form-grid-3 {
             display: grid;
@@ -358,74 +418,132 @@ HTML_PAGE = """<!DOCTYPE html>
         @media (max-width: 768px) {
             .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; }
         }
+
         .field-group {
             display: flex;
             flex-direction: column;
             gap: 0.45rem;
         }
-        label {
-            font-size: 0.8rem;
+        .field-group label {
+            font-size: 0.77rem;
             font-weight: 600;
             color: var(--text-secondary);
-            display: flex;
-            justify-content: space-between;
+            letter-spacing: 0.02em;
         }
         input[type="text"], select, textarea {
-            background: rgba(11, 15, 25, 0.9);
+            background: rgba(255, 255, 255, 0.035);
             border: 1px solid var(--border-subtle);
-            color: #fff;
+            border-radius: 10px;
             padding: 0.75rem 1rem;
-            border-radius: 12px;
-            font-size: 0.9rem;
+            color: #fff;
+            font-size: 0.88rem;
             font-family: inherit;
             outline: none;
             transition: all 0.2s;
-            width: 100%;
         }
         input[type="text"]:focus, select:focus, textarea:focus {
             border-color: var(--accent-cyan);
-            box-shadow: 0 0 16px rgba(6, 182, 212, 0.25);
+            background: rgba(6, 182, 212, 0.04);
+            box-shadow: 0 0 16px rgba(6, 182, 212, 0.2);
+        }
+        select option {
+            background: #0b1120;
+            color: #fff;
         }
         textarea {
             resize: vertical;
             min-height: 80px;
+            line-height: 1.5;
         }
 
         /* SLIDERS */
-        .slider-wrap input[type="range"] {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 7px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            outline: none;
+        .slider-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-subtle);
+            padding: 1.1rem 1.4rem;
+            border-radius: 12px;
         }
-        .slider-wrap input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: var(--accent-cyan);
-            cursor: pointer;
-            box-shadow: 0 0 12px var(--accent-cyan);
-            transition: transform 0.1s;
-        }
-        .slider-wrap input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
+        .slider-wrap label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .label-val {
             font-family: 'JetBrains Mono', monospace;
-            color: var(--accent-cyan);
             font-weight: 700;
+            color: var(--accent-cyan);
+            font-size: 0.95rem;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.7);
+            transition: transform 0.15s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
         }
 
-        /* TOGGLE CARDS */
+        /* LIVE HURDLE CALCULATOR CARD IN STEP 2 */
+        .hurdle-live-card {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(99, 102, 241, 0.08));
+            border: 1px solid rgba(6, 182, 212, 0.35);
+            border-radius: 14px;
+            padding: 1.2rem 1.6rem;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 1.5rem;
+            box-shadow: 0 10px 25px rgba(6, 182, 212, 0.08);
+        }
+        .hurdle-metric-group {
+            display: flex;
+            align-items: center;
+            gap: 1.8rem;
+        }
+        .hurdle-metric {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        .hurdle-metric-title {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+        .hurdle-metric-num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.65rem;
+            font-weight: 800;
+            color: var(--accent-cyan);
+        }
+
+        /* TOGGLES */
         .toggles-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 1.2rem;
         }
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
             .toggles-grid { grid-template-columns: 1fr; }
         }
         .toggle-box {
@@ -436,8 +554,6 @@ HTML_PAGE = """<!DOCTYPE html>
             border: 1px solid var(--border-subtle);
             padding: 1rem 1.2rem;
             border-radius: 12px;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
         }
         .switch {
             position: relative;
@@ -452,87 +568,119 @@ HTML_PAGE = """<!DOCTYPE html>
             cursor: pointer;
             top: 0; left: 0; right: 0; bottom: 0;
             background-color: rgba(255, 255, 255, 0.1);
-            transition: .3s;
             border-radius: 24px;
-            border: 1px solid var(--border-subtle);
+            transition: .25s;
         }
         .slider-switch:before {
             position: absolute;
             content: "";
-            height: 16px;
-            width: 16px;
+            height: 18px;
+            width: 18px;
             left: 3px;
             bottom: 3px;
-            background-color: white;
-            transition: .3s;
+            background-color: #fff;
             border-radius: 50%;
+            transition: .25s;
         }
         input:checked + .slider-switch {
             background-color: var(--accent-cyan);
-            border-color: var(--accent-cyan);
         }
         input:checked + .slider-switch:before {
             transform: translateX(20px);
+            background-color: #040711;
         }
 
-        /* STEP FOOTER NAVIGATION */
+        /* BUTTONS */
         .step-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
             border-top: 1px solid var(--border-subtle);
+            padding-top: 1.4rem;
+            margin-top: 0.5rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .footer-left-actions {
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
         }
         .btn-prev {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.04);
             border: 1px solid var(--border-subtle);
             color: var(--text-secondary);
-            padding: 0.75rem 1.5rem;
+            padding: 0.7rem 1.4rem;
             border-radius: 10px;
-            font-size: 0.85rem;
+            font-size: 0.84rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
         }
         .btn-prev:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
             color: #fff;
         }
         .btn-next {
-            background: rgba(6, 182, 212, 0.15);
+            background: rgba(6, 182, 212, 0.14);
             border: 1px solid var(--accent-cyan);
             color: var(--accent-cyan);
-            padding: 0.75rem 1.8rem;
+            padding: 0.72rem 1.6rem;
             border-radius: 10px;
             font-size: 0.85rem;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
         }
         .btn-next:hover {
             background: var(--accent-cyan);
-            color: #000;
-            box-shadow: 0 0 16px rgba(6, 182, 212, 0.4);
+            color: #040711;
+            box-shadow: 0 0 18px rgba(6, 182, 212, 0.45);
+            transform: translateY(-1px);
+        }
+        .btn-quick-run {
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid var(--accent-indigo);
+            color: #c7d2fe;
+            padding: 0.72rem 1.4rem;
+            border-radius: 10px;
+            font-size: 0.84rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+        .btn-quick-run:hover {
+            background: var(--accent-indigo);
+            color: #fff;
+            box-shadow: 0 0 16px rgba(99, 102, 241, 0.45);
         }
         .btn-submit-wizard {
             background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
             border: none;
-            color: #000;
+            color: #040711;
             padding: 0.85rem 2.2rem;
             border-radius: 12px;
             font-size: 0.95rem;
             font-weight: 800;
             cursor: pointer;
-            transition: all 0.25s;
-            box-shadow: 0 4px 20px rgba(6, 182, 212, 0.4);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 4px 22px rgba(6, 182, 212, 0.45);
             display: flex;
             align-items: center;
             gap: 0.6rem;
         }
         .btn-submit-wizard:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 28px rgba(6, 182, 212, 0.55);
+            box-shadow: 0 6px 30px rgba(6, 182, 212, 0.65);
         }
 
         /* WINDOW 2: INVESTMENT MEMORANDUM & ANALYSIS VIEW */
@@ -541,13 +689,14 @@ HTML_PAGE = """<!DOCTYPE html>
             margin: 0 auto;
             display: flex;
             flex-direction: column;
-            gap: 1.8rem;
+            gap: 1.6rem;
         }
         
         /* EXECUTIVE HERO BANNER */
         .hero-banner {
-            background: rgba(13, 18, 32, 0.9);
+            background: var(--bg-card);
             border: 1px solid var(--border-subtle);
+            border-top: 1px solid var(--border-highlight);
             border-radius: 20px;
             padding: 1.8rem 2.2rem;
             display: flex;
@@ -555,8 +704,9 @@ HTML_PAGE = """<!DOCTYPE html>
             align-items: center;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(20px);
+            box-shadow: var(--glow-card);
+            backdrop-filter: blur(24px);
+            transition: all 0.3s ease;
         }
         .hero-banner::before {
             content: '';
@@ -566,17 +716,24 @@ HTML_PAGE = """<!DOCTYPE html>
             bottom: 0;
             width: 6px;
             background: var(--accent-cyan);
+            transition: background 0.3s ease;
         }
+        .hero-banner.border-invest::before { background: var(--accent-emerald); }
+        .hero-banner.border-review::before { background: var(--accent-amber); }
+        .hero-banner.border-reject::before { background: var(--accent-rose); }
+
         .hero-left h2 {
             font-family: 'Outfit', sans-serif;
-            font-size: 2rem;
+            font-size: 2.1rem;
             font-weight: 800;
-            letter-spacing: -0.02em;
+            letter-spacing: -0.025em;
+            color: #fff;
         }
         .hero-left p {
-            font-size: 0.88rem;
+            font-size: 0.86rem;
             color: var(--text-secondary);
-            margin-top: 0.3rem;
+            margin-top: 0.35rem;
+            font-weight: 500;
         }
         .hero-actions {
             display: flex;
@@ -586,25 +743,28 @@ HTML_PAGE = """<!DOCTYPE html>
         .badge-verdict {
             font-family: 'Outfit', sans-serif;
             font-weight: 900;
-            font-size: 1.5rem;
+            font-size: 1.55rem;
             letter-spacing: 0.08em;
-            padding: 0.6rem 2rem;
+            padding: 0.65rem 2.2rem;
             border-radius: 14px;
             text-transform: uppercase;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            transition: all 0.3s;
         }
         .badge-invest {
-            background: rgba(16, 185, 129, 0.15);
+            background: rgba(16, 185, 129, 0.16);
             color: var(--accent-emerald);
             border: 1px solid var(--accent-emerald);
             box-shadow: var(--glow-emerald);
         }
         .badge-review {
-            background: rgba(245, 158, 11, 0.15);
+            background: rgba(245, 158, 11, 0.16);
             color: var(--accent-amber);
             border: 1px solid var(--accent-amber);
+            box-shadow: 0 0 30px rgba(245, 158, 11, 0.25);
         }
         .badge-reject {
-            background: rgba(244, 63, 94, 0.15);
+            background: rgba(244, 63, 94, 0.16);
             color: var(--accent-rose);
             border: 1px solid var(--accent-rose);
             box-shadow: var(--glow-rose);
@@ -616,56 +776,68 @@ HTML_PAGE = """<!DOCTYPE html>
             grid-template-columns: repeat(4, 1fr);
             gap: 1.2rem;
         }
-        @media (max-width: 900px) {
+        @media (max-width: 960px) {
             .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 580px) {
+            .kpi-strip { grid-template-columns: 1fr; }
         }
         .kpi-card {
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
+            border-top: 1px solid var(--border-highlight);
             border-radius: 16px;
-            padding: 1.4rem;
+            padding: 1.4rem 1.6rem;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(6, 182, 212, 0.35);
         }
         .kpi-card-title {
             font-size: 0.74rem;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.06em;
-            font-weight: 600;
+            font-weight: 700;
         }
         .kpi-card-num {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 2rem;
+            font-size: 2.1rem;
             font-weight: 800;
             margin: 0.35rem 0;
+            letter-spacing: -0.02em;
         }
         .kpi-card-sub {
             font-size: 0.76rem;
             color: var(--text-secondary);
         }
 
-        /* DUAL GAUGE */
+        /* DUAL GAUGE SPREAD CARD */
         .gauge-card {
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
+            border-top: 1px solid var(--border-highlight);
             border-radius: 16px;
             padding: 1.4rem 1.8rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
         }
         .gauge-header {
             display: flex;
             justify-content: space-between;
             font-size: 0.85rem;
             font-weight: 700;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.85rem;
+            align-items: center;
         }
         .gauge-bar-track {
             position: relative;
-            height: 16px;
-            background: rgba(255, 255, 255, 0.08);
+            height: 18px;
+            background: rgba(255, 255, 255, 0.07);
             border-radius: 10px;
             overflow: visible;
         }
@@ -673,16 +845,19 @@ HTML_PAGE = """<!DOCTYPE html>
             height: 100%;
             background: linear-gradient(to right, var(--accent-indigo), var(--accent-cyan));
             border-radius: 10px;
-            transition: width 0.6s ease;
+            transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
         }
         .gauge-hurdle-marker {
             position: absolute;
             top: -6px;
             width: 4px;
-            height: 28px;
+            height: 30px;
             background: var(--accent-rose);
-            box-shadow: 0 0 10px var(--accent-rose);
+            box-shadow: 0 0 12px var(--accent-rose);
             z-index: 2;
+            border-radius: 2px;
+            transition: left 0.5s ease;
         }
         .gauge-footer {
             display: flex;
@@ -690,22 +865,22 @@ HTML_PAGE = """<!DOCTYPE html>
             font-size: 0.75rem;
             font-family: 'JetBrains Mono', monospace;
             color: var(--text-muted);
-            margin-top: 0.6rem;
+            margin-top: 0.65rem;
         }
 
         /* WORKBENCH TAB NAVIGATOR */
         .workbench-nav {
             display: flex;
-            background: rgba(255, 255, 255, 0.04);
+            background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--border-subtle);
             border-radius: 14px;
-            padding: 0.4rem;
-            gap: 0.4rem;
+            padding: 0.35rem;
+            gap: 0.35rem;
             overflow-x: auto;
         }
         .wb-btn {
             background: transparent;
-            border: none;
+            border: 1px solid transparent;
             color: var(--text-secondary);
             padding: 0.65rem 1.3rem;
             border-radius: 10px;
@@ -718,15 +893,21 @@ HTML_PAGE = """<!DOCTYPE html>
             gap: 0.5rem;
             white-space: nowrap;
         }
+        .wb-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.04);
+        }
         .wb-btn.active {
             background: rgba(6, 182, 212, 0.15);
             color: var(--accent-cyan);
-            border: 1px solid var(--accent-cyan);
+            border-color: rgba(6, 182, 212, 0.5);
+            box-shadow: 0 2px 10px rgba(6, 182, 212, 0.15);
         }
 
         /* WORKBENCH PANES */
         .wb-pane {
             display: none;
+            animation: paneFadeIn 0.25s ease;
         }
         .wb-pane.active {
             display: block;
@@ -735,54 +916,63 @@ HTML_PAGE = """<!DOCTYPE html>
         /* WORKBENCH A: RADAR & PRECEDENTS */
         .radar-deck-grid {
             display: grid;
-            grid-template-columns: 420px 1fr;
+            grid-template-columns: 430px 1fr;
             gap: 1.8rem;
         }
-        @media (max-width: 1050px) {
+        @media (max-width: 1080px) {
             .radar-deck-grid { grid-template-columns: 1fr; }
         }
         .radar-container {
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
+            border-top: 1px solid var(--border-highlight);
             border-radius: 18px;
             padding: 1.8rem;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
         }
         .precedents-scroll {
             display: flex;
             flex-direction: column;
             gap: 0.9rem;
-            max-height: 480px;
+            max-height: 520px;
             overflow-y: auto;
             padding-right: 0.5rem;
         }
         .precedent-card {
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
+            border-top: 1px solid var(--border-highlight);
             border-radius: 14px;
             padding: 1.2rem;
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .precedent-card:hover, .precedent-card.selected {
+        .precedent-card:hover {
+            border-color: rgba(6, 182, 212, 0.4);
+            transform: translateX(2px);
+        }
+        .precedent-card.selected {
             border-color: var(--accent-cyan);
-            background: rgba(6, 182, 212, 0.05);
+            background: rgba(6, 182, 212, 0.08);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.15);
         }
         .tag-pill {
             font-size: 0.72rem;
             font-weight: 700;
-            padding: 0.25rem 0.65rem;
+            padding: 0.28rem 0.68rem;
             border-radius: 6px;
             text-transform: uppercase;
+            letter-spacing: 0.03em;
         }
-        .tag-mna { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); }
-        .tag-closed { background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); }
+        .tag-mna { background: rgba(16, 185, 129, 0.16); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .tag-closed { background: rgba(244, 63, 94, 0.16); color: var(--accent-rose); border: 1px solid rgba(244, 63, 94, 0.3); }
         .attr-bars-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
@@ -805,6 +995,7 @@ HTML_PAGE = """<!DOCTYPE html>
             height: 100%;
             background: var(--accent-cyan);
             border-radius: 3px;
+            transition: width 0.4s ease;
         }
 
         /* WORKBENCH B: 2D SENSITIVITY GRID */
@@ -816,23 +1007,31 @@ HTML_PAGE = """<!DOCTYPE html>
         }
         .matrix-table th {
             text-align: center;
-            padding: 0.9rem;
+            padding: 1rem;
             color: var(--text-muted);
             font-weight: 700;
             border-bottom: 1px solid var(--border-subtle);
+            font-size: 0.8rem;
+            text-transform: uppercase;
         }
         .matrix-table td {
             text-align: center;
-            padding: 1.2rem 0.6rem;
+            padding: 1.3rem 0.8rem;
             border: 1px solid rgba(255, 255, 255, 0.04);
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.88rem;
-            transition: all 0.15s;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            cursor: pointer;
         }
-        .matrix-cell-invest { background: rgba(16, 185, 129, 0.12); color: var(--accent-emerald); font-weight: 700; }
-        .matrix-cell-marginal { background: rgba(245, 158, 11, 0.1); color: var(--accent-amber); }
-        .matrix-cell-reject { background: rgba(244, 63, 94, 0.1); color: var(--accent-rose); }
-        .matrix-active-cell { outline: 2px solid var(--accent-cyan); box-shadow: 0 0 15px rgba(6, 182, 212, 0.4); }
+        .matrix-table td:hover {
+            transform: scale(1.02);
+            z-index: 5;
+            position: relative;
+        }
+        .matrix-cell-invest { background: rgba(16, 185, 129, 0.14); color: var(--accent-emerald); font-weight: 700; border-color: rgba(16, 185, 129, 0.2); }
+        .matrix-cell-marginal { background: rgba(245, 158, 11, 0.12); color: var(--accent-amber); font-weight: 600; border-color: rgba(245, 158, 11, 0.2); }
+        .matrix-cell-reject { background: rgba(244, 63, 94, 0.12); color: var(--accent-rose); border-color: rgba(244, 63, 94, 0.2); }
+        .matrix-active-cell { outline: 2px solid var(--accent-cyan); box-shadow: 0 0 20px rgba(6, 182, 212, 0.45); }
 
         /* WORKBENCH C: SCENARIOS & POWER LAW */
         .sc-split-grid {
@@ -847,8 +1046,8 @@ HTML_PAGE = """<!DOCTYPE html>
         .sc-stat-box {
             background: rgba(255, 255, 255, 0.02);
             border: 1px solid var(--border-subtle);
-            border-radius: 14px;
-            padding: 1.5rem;
+            border-radius: 16px;
+            padding: 1.8rem;
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 1.2rem;
@@ -866,8 +1065,10 @@ HTML_PAGE = """<!DOCTYPE html>
         .diag-box {
             background: var(--bg-card);
             border: 1px solid var(--border-subtle);
+            border-top: 1px solid var(--border-highlight);
             border-radius: 16px;
             padding: 1.8rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
         }
         .diag-box h4 {
             font-size: 1.05rem;
@@ -881,7 +1082,7 @@ HTML_PAGE = """<!DOCTYPE html>
             list-style: none;
             display: flex;
             flex-direction: column;
-            gap: 0.8rem;
+            gap: 0.85rem;
             font-size: 0.88rem;
             color: var(--text-secondary);
         }
@@ -900,13 +1101,13 @@ HTML_PAGE = """<!DOCTYPE html>
 
         /* WORKBENCH E: MARKDOWN MEMO PREVIEW */
         .memo-preview-box {
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(0, 0, 0, 0.45);
             border: 1px solid var(--border-subtle);
             border-radius: 16px;
             padding: 2rem;
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.85rem;
-            line-height: 1.6;
+            line-height: 1.65;
             color: #cbd5e1;
             white-space: pre-wrap;
             max-height: 550px;
@@ -932,10 +1133,13 @@ HTML_PAGE = """<!DOCTYPE html>
             color: var(--text-muted);
             font-weight: 700;
             border-bottom: 1px solid var(--border-subtle);
+            font-size: 0.8rem;
+            text-transform: uppercase;
         }
         .pipeline-table td {
             padding: 1.2rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background 0.15s;
         }
         .row-allocated {
             background: rgba(16, 185, 129, 0.08);
@@ -949,20 +1153,20 @@ HTML_PAGE = """<!DOCTYPE html>
             font-family: 'Outfit', sans-serif;
             font-weight: 800;
             font-size: 0.78rem;
-            padding: 0.3rem 0.75rem;
+            padding: 0.35rem 0.85rem;
             border-radius: 8px;
             display: inline-block;
         }
         .pipeline-badge-approved { background: rgba(16, 185, 129, 0.2); color: var(--accent-emerald); border: 1px solid var(--accent-emerald); }
-        .pipeline-badge-passed { background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); }
+        .pipeline-badge-passed { background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); border: 1px solid rgba(244, 63, 94, 0.3); }
 
         /* LOADING OVERLAY */
         #modal-loading {
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(6, 8, 13, 0.85);
-            backdrop-filter: blur(16px);
+            background: rgba(4, 7, 17, 0.88);
+            backdrop-filter: blur(20px);
             z-index: 2000;
             flex-direction: column;
             align-items: center;
@@ -970,43 +1174,68 @@ HTML_PAGE = """<!DOCTYPE html>
             text-align: center;
         }
         .spinner-ring {
-            width: 60px;
-            height: 60px;
+            width: 65px;
+            height: 65px;
             border: 4px solid rgba(6, 182, 212, 0.15);
             border-top: 4px solid var(--accent-cyan);
             border-radius: 50%;
-            animation: spin 0.75s linear infinite;
+            animation: spin 0.7s linear infinite;
             margin-bottom: 1.5rem;
+            box-shadow: 0 0 25px rgba(6, 182, 212, 0.4);
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* TOAST NOTIFICATION */
+        #toast-notice {
+            position: fixed;
+            bottom: 2rem;
+            right: 2.5rem;
+            background: rgba(12, 18, 33, 0.95);
+            border: 1px solid var(--accent-cyan);
+            color: #fff;
+            padding: 0.85rem 1.6rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), var(--glow-cyan);
+            display: none;
+            align-items: center;
+            gap: 0.6rem;
+            z-index: 3000;
+            font-size: 0.88rem;
+            font-weight: 600;
+            animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
     <!-- TOP APP HEADER -->
     <header>
-        <div class="logo-wrap">
+        <div class="logo-wrap" onclick="switchWindow('form')">
             <div class="logo-mark">BCAPM</div>
             <div class="logo-text">
                 <h1>Backdrop-Conditioned Analogy Precedent Modeling</h1>
-                <p>Institutional Venture Underwriting & Capital Decision System</p>
+                <p>Institutional Venture Underwriting & Capital Decision Terminal</p>
             </div>
         </div>
 
         <nav class="window-nav">
             <button type="button" class="window-btn active" id="btn-win-form" onclick="switchWindow('form')">
-                <span>📝</span> 1. Venture Intake Questionnaire
+                <span>📝</span> 1. Intake Questionnaire
             </button>
             <button type="button" class="window-btn" id="btn-win-memo" onclick="switchWindow('memo')">
-                <span>📊</span> 2. Investment Memorandum & Analysis
+                <span>📊</span> 2. Investment Memorandum
             </button>
             <button type="button" class="window-btn" id="btn-win-pipeline" onclick="switchWindow('pipeline')">
-                <span>💼</span> 3. Fund Deal-Room Allocator (Top-K)
+                <span>💼</span> 3. Deal-Room Allocator (Top-K)
             </button>
         </nav>
 
         <div class="header-stats">
-            <div class="stat-badge"><span class="pulse-dot"></span> Precedents: 13,258 Deals</div>
-            <div class="stat-badge">Asymmetric Loss Engine Active</div>
+            <div class="stat-badge"><span class="pulse-dot"></span> Precedent Pool: 13,258 Deals</div>
+            <div class="stat-badge">⚡ Sub-15ms ML Inference</div>
         </div>
     </header>
 
@@ -1019,14 +1248,16 @@ HTML_PAGE = """<!DOCTYPE html>
                 <!-- PRESET ARCHETYPES BAR -->
                 <div class="presets-wrap">
                     <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
-                        ⚡ Quick Load Verified Archetype:
+                        ⚡ Quick Archetypes:
                     </span>
                     <div class="presets-list">
-                        <button type="button" class="preset-pill" onclick="loadPreset('ai_saas')">🤖 AI Health SaaS</button>
+                        <button type="button" class="preset-pill" onclick="loadPreset('ai_saas')">🤖 AI Diagnostics</button>
                         <button type="button" class="preset-pill" onclick="loadPreset('fintech')">💳 B2B FinTech API</button>
                         <button type="button" class="preset-pill" onclick="loadPreset('d2c')">🛍️ D2C Brand</button>
                         <button type="button" class="preset-pill" onclick="loadPreset('cleantech')">⚡ CleanTech Battery</button>
-                        <button type="button" class="preset-pill" onclick="loadPreset('web3')">🔗 Web3 Compute</button>
+                        <button type="button" class="preset-pill" onclick="loadPreset('web3')">🔗 Decentralized Compute</button>
+                        <button type="button" class="preset-pill" onclick="loadRandomDeal()">🎲 Random Venture Deal</button>
+                        <button type="button" class="preset-pill preset-pill-instant" onclick="instantUnderwrite()">⚡ 1-Click Instant Underwrite</button>
                     </div>
                 </div>
 
@@ -1060,7 +1291,7 @@ HTML_PAGE = """<!DOCTYPE html>
                         <div class="step-pane active" id="step-pane-1">
                             <div class="step-pane-header">
                                 <h3>Step 1: Venture Identification & Geographic Cluster</h3>
-                                <p>Specify company nomenclature, industrial categorization, and physical innovation hub.</p>
+                                <p>Specify company nomenclature, industrial categorization, and physical innovation cluster.</p>
                             </div>
                             <div class="field-group">
                                 <label for="startup-name">Opportunity / Venture Title</label>
@@ -1112,8 +1343,15 @@ HTML_PAGE = """<!DOCTYPE html>
                                 </div>
                             </div>
                             <div class="step-footer">
-                                <div></div>
-                                <button type="button" class="btn-next" onclick="jumpToStep(2)">Continue to Deal Economics →</button>
+                                <div class="footer-left-actions">
+                                    <button type="button" class="btn-quick-run" onclick="instantUnderwrite()">
+                                        <span>⚡ Underwrite Now</span>
+                                    </button>
+                                </div>
+                                <button type="button" class="btn-next" onclick="jumpToStep(2)">
+                                    <span>Continue to Deal Economics</span>
+                                    <span>→</span>
+                                </button>
                             </div>
                         </div>
 
@@ -1137,13 +1375,30 @@ HTML_PAGE = """<!DOCTYPE html>
                                 </label>
                                 <input type="range" id="target-exit" min="5.0" max="100.0" step="5.0" value="35.0" oninput="updateSliders()">
                             </div>
-                            <div style="background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); border-radius: 12px; padding: 1rem 1.4rem; display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <span style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Derived Breakeven Hurdle Rate:</span>
-                                    <p style="font-size: 0.84rem; color: var(--text-secondary); margin-top: 0.2rem;">Minimum success probability required for Expected Monetary Value &gt; $0</p>
+
+                            <!-- DYNAMIC LIVE HURDLE CALCULATOR CARD -->
+                            <div class="hurdle-live-card">
+                                <div class="hurdle-metric-group">
+                                    <div class="hurdle-metric">
+                                        <span class="hurdle-metric-title">Breakeven Hurdle (p*)</span>
+                                        <span class="hurdle-metric-num" id="hurdle-preview">5.0%</span>
+                                    </div>
+                                    <div class="hurdle-metric">
+                                        <span class="hurdle-metric-title">Target Multiple (MOIC)</span>
+                                        <span class="hurdle-metric-num" id="multiple-preview" style="color: var(--accent-emerald);">20.0x</span>
+                                    </div>
+                                    <div class="hurdle-metric">
+                                        <span class="hurdle-metric-title">Hurdle Regime</span>
+                                        <span id="hurdle-regime-badge" style="font-size: 0.8rem; font-weight: 700; color: var(--accent-emerald); margin-top: 0.3rem;">
+                                            🟢 High Feasibility Floor
+                                        </span>
+                                    </div>
                                 </div>
-                                <span id="hurdle-preview" style="font-family: 'JetBrains Mono'; font-size: 1.5rem; font-weight: 800; color: var(--accent-cyan);">5.0%</span>
+                                <span style="font-size: 0.74rem; color: var(--text-muted); max-width: 200px; text-align: right; line-height: 1.4;">
+                                    Asymmetric rule: P(Exit) must exceed p* to deliver positive EMV.
+                                </span>
                             </div>
+
                             <div class="form-grid-2">
                                 <div class="field-group">
                                     <label for="funding-rounds">Financing Round Stage</label>
@@ -1165,8 +1420,16 @@ HTML_PAGE = """<!DOCTYPE html>
                                 </div>
                             </div>
                             <div class="step-footer">
-                                <button type="button" class="btn-prev" onclick="jumpToStep(1)">← Back</button>
-                                <button type="button" class="btn-next" onclick="jumpToStep(3)">Continue to Founding Team →</button>
+                                <div class="footer-left-actions">
+                                    <button type="button" class="btn-prev" onclick="jumpToStep(1)">← Back</button>
+                                    <button type="button" class="btn-quick-run" onclick="instantUnderwrite()">
+                                        <span>⚡ Underwrite Now</span>
+                                    </button>
+                                </div>
+                                <button type="button" class="btn-next" onclick="jumpToStep(3)">
+                                    <span>Continue to Founding Team</span>
+                                    <span>→</span>
+                                </button>
                             </div>
                         </div>
 
@@ -1174,7 +1437,7 @@ HTML_PAGE = """<!DOCTYPE html>
                         <div class="step-pane" id="step-pane-3">
                             <div class="step-pane-header">
                                 <h3>Step 3: Founding Team Human Capital & Pedigree</h3>
-                                <p>Underwrite leadership depth, elite technical pedigree, accelerator backing, and team composition.</p>
+                                <p>Underwrite leadership depth, elite technical pedigree, accelerator backing, and executive composition.</p>
                             </div>
                             <div class="form-grid-3">
                                 <div class="field-group">
@@ -1208,7 +1471,7 @@ HTML_PAGE = """<!DOCTYPE html>
                             <div class="toggles-grid">
                                 <div class="toggle-box">
                                     <div>
-                                        <strong style="color: #fff;">Tier-1 Tech / FAANG Alumni</strong>
+                                        <strong style="color: #fff; font-size: 0.88rem;">Tier-1 Tech / FAANG Alumni</strong>
                                         <p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 0.15rem;">Founders held senior engineering/product roles at Google, Meta, Apple, Amazon</p>
                                     </div>
                                     <label class="switch">
@@ -1218,7 +1481,7 @@ HTML_PAGE = """<!DOCTYPE html>
                                 </div>
                                 <div class="toggle-box">
                                     <div>
-                                        <strong style="color: #fff;">Top-Tier Accelerator Alumni</strong>
+                                        <strong style="color: #fff; font-size: 0.88rem;">Top-Tier Accelerator Alumni</strong>
                                         <p style="font-size: 0.74rem; color: var(--text-muted); margin-top: 0.15rem;">Graduated from Y Combinator, Techstars, or 500 Global</p>
                                     </div>
                                     <label class="switch">
@@ -1228,8 +1491,16 @@ HTML_PAGE = """<!DOCTYPE html>
                                 </div>
                             </div>
                             <div class="step-footer">
-                                <button type="button" class="btn-prev" onclick="jumpToStep(2)">← Back</button>
-                                <button type="button" class="btn-next" onclick="jumpToStep(4)">Continue to Product Architecture →</button>
+                                <div class="footer-left-actions">
+                                    <button type="button" class="btn-prev" onclick="jumpToStep(2)">← Back</button>
+                                    <button type="button" class="btn-quick-run" onclick="instantUnderwrite()">
+                                        <span>⚡ Underwrite Now</span>
+                                    </button>
+                                </div>
+                                <button type="button" class="btn-next" onclick="jumpToStep(4)">
+                                    <span>Continue to Product & GTM</span>
+                                    <span>→</span>
+                                </button>
                             </div>
                         </div>
 
@@ -1260,7 +1531,7 @@ HTML_PAGE = """<!DOCTYPE html>
                             </div>
                             <div class="toggle-box">
                                 <div>
-                                    <strong style="color: #fff;">Proprietary Machine Learning / Deep Tech Core</strong>
+                                    <strong style="color: #fff; font-size: 0.88rem;">Proprietary Machine Learning / Deep Tech Core</strong>
                                     <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;">Core value proposition built on trained proprietary models with data flywheel advantage</p>
                                 </div>
                                 <label class="switch">
@@ -1273,8 +1544,16 @@ HTML_PAGE = """<!DOCTYPE html>
                                 <textarea id="venture-description">Enterprise multimodal diagnostics AI platform integrating Electronic Health Records with imaging models to accelerate clinical triage.</textarea>
                             </div>
                             <div class="step-footer">
-                                <button type="button" class="btn-prev" onclick="jumpToStep(3)">← Back</button>
-                                <button type="button" class="btn-next" onclick="jumpToStep(5)">Continue to Traction & Review →</button>
+                                <div class="footer-left-actions">
+                                    <button type="button" class="btn-prev" onclick="jumpToStep(3)">← Back</button>
+                                    <button type="button" class="btn-quick-run" onclick="instantUnderwrite()">
+                                        <span>⚡ Underwrite Now</span>
+                                    </button>
+                                </div>
+                                <button type="button" class="btn-next" onclick="jumpToStep(5)">
+                                    <span>Continue to Traction & Review</span>
+                                    <span>→</span>
+                                </button>
                             </div>
                         </div>
 
@@ -1301,7 +1580,7 @@ HTML_PAGE = """<!DOCTYPE html>
                             <div class="step-footer">
                                 <button type="button" class="btn-prev" onclick="jumpToStep(4)">← Back</button>
                                 <button type="submit" class="btn-submit-wizard">
-                                    <span>⚡ Underwrite Venture & Analyze Precedents</span>
+                                    <span>⚡ Underwrite Venture & Match Precedents</span>
                                     <span>→</span>
                                 </button>
                             </div>
@@ -1317,14 +1596,14 @@ HTML_PAGE = """<!DOCTYPE html>
         <div id="window-memo" class="window-pane">
             <div class="memo-window-wrap">
                 <!-- HERO VERDICT BANNER -->
-                <div class="hero-banner">
+                <div class="hero-banner" id="memo-hero-card">
                     <div class="hero-left">
                         <h2 id="memo-title">CognitiveHealth AI</h2>
                         <p id="memo-subtitle">HEALTHCARE • B2B ENTERPRISE • SAN FRANCISCO, USA • 2026 ERA</p>
                     </div>
                     <div class="hero-actions">
                         <button type="button" class="btn-prev" onclick="switchWindow('form')">
-                            <span>✏️</span> Edit Intake Parameters
+                            <span>✏️</span> Edit Parameters
                         </button>
                         <div id="memo-verdict-badge" class="badge-verdict badge-invest">INVEST</div>
                     </div>
@@ -1335,12 +1614,12 @@ HTML_PAGE = """<!DOCTYPE html>
                     <div class="kpi-card">
                         <div class="kpi-card-title">Calibrated P(Exit)</div>
                         <div class="kpi-card-num" id="memo-prob" style="color: var(--accent-cyan);">68.8%</div>
-                        <div class="kpi-card-sub">Base Exit Rate: 53.4%</div>
+                        <div class="kpi-card-sub" id="memo-prob-sub">Base Exit Rate: 53.4%</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-card-title">Breakeven Hurdle (p*)</div>
                         <div class="kpi-card-num" id="memo-hurdle">5.0%</div>
-                        <div class="kpi-card-sub">p* = Check ($1.75M) / Exit ($35M)</div>
+                        <div class="kpi-card-sub" id="memo-hurdle-sub">p* = Check ($1.75M) / Exit ($35M)</div>
                     </div>
                     <div class="kpi-card">
                         <div class="kpi-card-title">Expected Net EMV</div>
@@ -1394,18 +1673,21 @@ HTML_PAGE = """<!DOCTYPE html>
                 <div id="wb-pane-radar" class="wb-pane active">
                     <div class="radar-deck-grid">
                         <div class="radar-container">
-                            <h4 style="font-size: 0.92rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;">Decomposed Multi-Attribute Radar</h4>
-                            <div style="width: 100%; height: 280px; position: relative;">
+                            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 0.6rem;">Multi-Attribute Analogue Radar</h4>
+                            <div style="width: 100%; height: 300px; position: relative;">
                                 <canvas id="wbRadarCanvas"></canvas>
                             </div>
-                            <span id="wb-radar-caption" style="font-size: 0.74rem; color: var(--text-muted); margin-top: 0.5rem;">
+                            <span id="wb-radar-caption" style="font-size: 0.74rem; color: var(--text-muted); margin-top: 0.6rem;">
                                 Target Startup vs Historical Analogue
                             </span>
                         </div>
-                        <div class="card-panel" style="padding: 1.4rem;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.6rem;">
-                                <h3 style="font-family: 'Outfit'; font-size: 1.15rem; color: #fff;">Top Historical Precedents (Pool of 13,258)</h3>
-                                <span style="font-size: 0.74rem; color: var(--text-muted);">Click card to benchmark radar</span>
+                        <div class="card-panel" style="padding: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.1rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.7rem;">
+                                <div>
+                                    <h3 style="font-family: 'Outfit'; font-size: 1.18rem; color: #fff;">Top Historical Precedents (Pool of 13,258)</h3>
+                                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;">Selected via decomposed multi-attribute similarity matrix</p>
+                                </div>
+                                <span style="font-size: 0.74rem; color: var(--accent-cyan); font-weight: 600;">Click card to benchmark radar</span>
                             </div>
                             <div class="precedents-scroll" id="wb-precedents-deck"></div>
                         </div>
@@ -1416,8 +1698,8 @@ HTML_PAGE = """<!DOCTYPE html>
                 <div id="wb-pane-matrix" class="wb-pane">
                     <div class="card-panel">
                         <div style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.8rem; margin-bottom: 1rem;">
-                            <h3 style="font-family: 'Outfit'; font-size: 1.25rem; color: #fff;">2D Economic Sensitivity Heatmap Grid</h3>
-                            <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.2rem;">
+                            <h3 style="font-family: 'Outfit'; font-size: 1.3rem; color: #fff;">2D Economic Sensitivity Heatmap Grid</h3>
+                            <p style="font-size: 0.84rem; color: var(--text-muted); margin-top: 0.2rem;">
                                 Computes Net EMV and breakeven feasibility across 16 Check Size vs Liquidity Valuation exit permutations given calibrated P(Exit).
                             </p>
                         </div>
@@ -1428,12 +1710,12 @@ HTML_PAGE = """<!DOCTYPE html>
                 <!-- WORKBENCH PANE C: SCENARIOS & POWER LAW -->
                 <div id="wb-pane-scenario" class="wb-pane">
                     <div class="card-panel">
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.8rem; margin-bottom: 1.2rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.8rem; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 0.8rem;">
                             <div>
-                                <h3 style="font-family: 'Outfit'; font-size: 1.25rem; color: #fff;">Venture Return Scenario Sensitivity</h3>
-                                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.2rem;">Simulates 1,000 venture trajectories under heavy-tailed power-law distribution.</p>
+                                <h3 style="font-family: 'Outfit'; font-size: 1.3rem; color: #fff;">Venture Return Scenario Sensitivity</h3>
+                                <p style="font-size: 0.84rem; color: var(--text-muted); margin-top: 0.2rem;">Simulates 1,000 venture trajectories under heavy-tailed power-law distribution.</p>
                             </div>
-                            <div style="display: flex; gap: 0.4rem;">
+                            <div style="display: flex; gap: 0.45rem;">
                                 <button type="button" class="preset-pill" id="sc-btn-base" onclick="switchScenario('base')">Base Regime (5x–15x)</button>
                                 <button type="button" class="preset-pill" id="sc-btn-cons" onclick="switchScenario('conservative')">Conservative (2x–5x)</button>
                                 <button type="button" class="preset-pill" id="sc-btn-aggr" onclick="switchScenario('aggressive')">Aggressive (25x–100x+)</button>
@@ -1442,26 +1724,26 @@ HTML_PAGE = """<!DOCTYPE html>
                         <div class="sc-split-grid">
                             <div class="sc-stat-box">
                                 <div>
-                                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Mean Return Multiple</span>
-                                    <div id="wb-sc-mean" style="font-family: 'JetBrains Mono'; font-size: 1.8rem; font-weight: 800; color: var(--accent-cyan); margin-top: 0.2rem;">6.17x</div>
+                                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Mean Multiple</span>
+                                    <div id="wb-sc-mean" style="font-family: 'JetBrains Mono'; font-size: 1.85rem; font-weight: 800; color: var(--accent-cyan); margin-top: 0.25rem;">6.17x</div>
                                 </div>
                                 <div>
-                                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Expected Net Return</span>
-                                    <div id="wb-sc-net" style="font-family: 'JetBrains Mono'; font-size: 1.8rem; font-weight: 800; color: var(--accent-emerald); margin-top: 0.2rem;">+$9.25M</div>
+                                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Expected Net</span>
+                                    <div id="wb-sc-net" style="font-family: 'JetBrains Mono'; font-size: 1.85rem; font-weight: 800; color: var(--accent-emerald); margin-top: 0.25rem;">+$9.25M</div>
                                 </div>
                                 <div>
-                                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">P(Capital Loss)</span>
-                                    <div id="wb-sc-loss" style="font-family: 'JetBrains Mono'; font-size: 1.8rem; font-weight: 800; color: var(--accent-rose); margin-top: 0.2rem;">32%</div>
+                                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">P(Capital Loss)</span>
+                                    <div id="wb-sc-loss" style="font-family: 'JetBrains Mono'; font-size: 1.85rem; font-weight: 800; color: var(--accent-rose); margin-top: 0.25rem;">32%</div>
                                 </div>
                             </div>
-                            <div style="background: rgba(0,0,0,0.3); border-radius: 14px; border: 1px solid var(--border-subtle); padding: 1.2rem;">
-                                <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Simulated Power-Law Density Curve:</span>
-                                <div style="height: 140px; width: 100%; margin-top: 0.5rem;">
+                            <div style="background: rgba(0,0,0,0.35); border-radius: 14px; border: 1px solid var(--border-subtle); padding: 1.3rem;">
+                                <span style="font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Simulated Power-Law Density Curve:</span>
+                                <div style="height: 145px; width: 100%; margin-top: 0.5rem;">
                                     <canvas id="wbMonteCarloCanvas"></canvas>
                                 </div>
                             </div>
                         </div>
-                        <p id="wb-sc-desc" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 1rem;">
+                        <p id="wb-sc-desc" style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 1.1rem; line-height: 1.5;">
                             Standard historical venture capital power-law distribution (5x–15x median).
                         </p>
                     </div>
@@ -1470,11 +1752,11 @@ HTML_PAGE = """<!DOCTYPE html>
                 <!-- WORKBENCH PANE D: MACRO FRICTION -->
                 <div id="wb-pane-friction" class="wb-pane">
                     <div class="friction-split">
-                        <div class="diag-box">
+                        <div class="diag-box diag-support">
                             <h4 style="color: var(--accent-emerald);"><span>✔</span> Supporting Macroeconomic Tailwinds</h4>
                             <ul id="wb-support-list"></ul>
                         </div>
-                        <div class="diag-box">
+                        <div class="diag-box diag-adverse">
                             <h4 style="color: var(--accent-rose);"><span>⚠</span> Adverse Structural Headwinds</h4>
                             <ul id="wb-adverse-list"></ul>
                         </div>
@@ -1484,11 +1766,19 @@ HTML_PAGE = """<!DOCTYPE html>
                 <!-- WORKBENCH PANE E: MARKDOWN MEMO -->
                 <div id="wb-pane-report" class="wb-pane">
                     <div class="card-panel">
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.8rem; margin-bottom: 1rem;">
-                            <h3 style="font-family: 'Outfit'; font-size: 1.25rem; color: #fff;">Institutional 13-Section Due Diligence Memorandum</h3>
-                            <button type="button" class="btn-prev" onclick="copyMarkdownReport()">
-                                <span>📋</span> Copy Full Markdown to Clipboard
-                            </button>
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.9rem; margin-bottom: 1.1rem; flex-wrap: wrap; gap: 0.8rem;">
+                            <div>
+                                <h3 style="font-family: 'Outfit'; font-size: 1.3rem; color: #fff;">Institutional 13-Section Due Diligence Memorandum</h3>
+                                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;">Generated under Bayesian Precedent Conditioning & Asymmetric Loss Optimization</p>
+                            </div>
+                            <div style="display: flex; gap: 0.8rem;">
+                                <button type="button" class="btn-prev" onclick="copyMarkdownReport()">
+                                    <span>📋</span> Copy to Clipboard
+                                </button>
+                                <button type="button" class="btn-next" onclick="downloadMarkdownFile()">
+                                    <span>💾</span> Download .MD File
+                                </button>
+                            </div>
                         </div>
                         <div class="memo-preview-box" id="wb-memo-markdown-text">Awaiting report generation...</div>
                     </div>
@@ -1504,15 +1794,15 @@ HTML_PAGE = """<!DOCTYPE html>
                 <div class="card-panel">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 1.2rem; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
                         <div>
-                            <h2 style="font-family: 'Outfit'; font-size: 1.5rem; color: #fff;">Fund Deal-Room Allocator — Capacity-Constrained Top-K Selection</h2>
-                            <p style="font-size: 0.84rem; color: var(--text-muted); margin-top: 0.2rem;">
+                            <h2 style="font-family: 'Outfit'; font-size: 1.55rem; color: #fff;">Fund Deal-Room Allocator — Capacity-Constrained Top-K Selection</h2>
+                            <p style="font-size: 0.84rem; color: var(--text-muted); margin-top: 0.25rem;">
                                 Solves optimal capital deployment across multiple competing opportunities subject to finite fund budget and deal capacity ceiling.
                             </p>
                         </div>
-                        <div style="display: flex; gap: 1rem; align-items: center;">
+                        <div style="display: flex; gap: 0.9rem; align-items: center; flex-wrap: wrap;">
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <label style="font-size: 0.78rem;">Fund Budget:</label>
-                                <select id="fund-budget-select" onchange="runPipelineAllocation()" style="padding: 0.5rem 0.8rem; font-size: 0.82rem; width: auto;">
+                                <label style="font-size: 0.78rem; font-weight: 600;">Fund Budget:</label>
+                                <select id="fund-budget-select" onchange="runPipelineAllocation()" style="padding: 0.45rem 0.85rem; font-size: 0.82rem; width: auto;">
                                     <option value="3.5">$3.5M Seed Pool</option>
                                     <option value="5.0" selected>$5.0M Seed Pool</option>
                                     <option value="7.5">$7.5M Seed Pool</option>
@@ -1520,8 +1810,8 @@ HTML_PAGE = """<!DOCTYPE html>
                                 </select>
                             </div>
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <label style="font-size: 0.78rem;">Capacity (K):</label>
-                                <select id="fund-capacity-select" onchange="runPipelineAllocation()" style="padding: 0.5rem 0.8rem; font-size: 0.82rem; width: auto;">
+                                <label style="font-size: 0.78rem; font-weight: 600;">Capacity (K):</label>
+                                <select id="fund-capacity-select" onchange="runPipelineAllocation()" style="padding: 0.45rem 0.85rem; font-size: 0.82rem; width: auto;">
                                     <option value="1">K = 1 Deal</option>
                                     <option value="2" selected>K = 2 Deals</option>
                                     <option value="3">K = 3 Deals</option>
@@ -1559,7 +1849,7 @@ HTML_PAGE = """<!DOCTYPE html>
                     </div>
 
                     <!-- PIPELINE DEALS TABLE -->
-                    <div style="background: rgba(0,0,0,0.3); border-radius: 16px; border: 1px solid var(--border-subtle); overflow: hidden; margin-bottom: 1.8rem;">
+                    <div style="background: rgba(0,0,0,0.35); border-radius: 16px; border: 1px solid var(--border-subtle); overflow: hidden; margin-bottom: 1.8rem;">
                         <table class="pipeline-table">
                             <thead>
                                 <tr>
@@ -1578,7 +1868,7 @@ HTML_PAGE = """<!DOCTYPE html>
                     </div>
 
                     <!-- COMPARATIVE BAR CHART -->
-                    <div style="background: rgba(0,0,0,0.3); border-radius: 16px; border: 1px solid var(--border-subtle); padding: 1.5rem;">
+                    <div style="background: rgba(0,0,0,0.35); border-radius: 16px; border: 1px solid var(--border-subtle); padding: 1.5rem;">
                         <h4 style="font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 1rem;">Deal Expected Net Monetary Value vs Required Check Size</h4>
                         <div style="height: 240px; width: 100%;">
                             <canvas id="pipelineBarCanvas"></canvas>
@@ -1592,8 +1882,14 @@ HTML_PAGE = """<!DOCTYPE html>
     <!-- FULLSCREEN LOADING MODAL -->
     <div id="modal-loading">
         <div class="spinner-ring"></div>
-        <h3 style="font-family: 'Outfit'; font-size: 1.5rem; color: #fff;">Underwriting Against 13,258 Historical Deals</h3>
-        <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.4rem;">Calibrating multi-attribute similarity matrix and economic hurdle rates...</p>
+        <h3 style="font-family: 'Outfit'; font-size: 1.45rem; color: #fff;">Underwriting Against 13,258 Historical Deals</h3>
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 0.4rem;">Calibrating multi-attribute similarity matrix and economic hurdle rates...</p>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast-notice">
+        <span id="toast-icon">✔</span>
+        <span id="toast-message">Notification message</span>
     </div>
 
     <script>
@@ -1678,6 +1974,99 @@ HTML_PAGE = """<!DOCTYPE html>
             }
         ];
 
+        // RANDOM VENTURE CATALOG FOR EXPLORATORY TESTING
+        const RANDOM_CATALOG = [
+            {
+                name: 'NeuroSync BCI',
+                category: 'health',
+                model: 'B2B',
+                country: 'USA',
+                city: 'Boston',
+                check: 2.25,
+                exit: 45.0,
+                rounds: '1',
+                repeat: '2',
+                team: '3',
+                female: '0.33',
+                execs: '4',
+                topCo: true,
+                accel: true,
+                ml: true,
+                desc: 'Non-invasive neural telemetry interface translating cognitive focus states for neuro-rehabilitation clinics.',
+                sent: 0.82,
+                eng: 84.0
+            },
+            {
+                name: 'AeroGlide Cargo',
+                category: 'hardware',
+                model: 'B2B',
+                country: 'DEU',
+                city: 'Munich',
+                check: 3.50,
+                exit: 60.0,
+                rounds: '2',
+                repeat: '2',
+                team: '3',
+                female: '0.0',
+                execs: '4',
+                topCo: true,
+                accel: false,
+                ml: true,
+                desc: 'Autonomous electric vertical takeoff drone network for point-to-point industrial freight corridors.',
+                sent: 0.72,
+                eng: 68.0
+            },
+            {
+                name: 'HyperScale VectorDB',
+                category: 'software',
+                model: 'B2B',
+                country: 'USA',
+                city: 'Seattle',
+                check: 2.00,
+                exit: 50.0,
+                rounds: '1',
+                repeat: '2',
+                team: '2',
+                female: '0.50',
+                execs: '2',
+                topCo: true,
+                accel: true,
+                ml: true,
+                desc: 'Sub-millisecond approximate nearest neighbor embedding database engineered for frontier agentic AI workflows.',
+                sent: 0.88,
+                eng: 92.0
+            },
+            {
+                name: 'Veritas Zero-Knowledge Rails',
+                category: 'finance',
+                model: 'B2B',
+                country: 'GBR',
+                city: 'London',
+                check: 1.80,
+                exit: 40.0,
+                rounds: '1',
+                repeat: '1',
+                team: '2',
+                female: '0.0',
+                execs: '2',
+                topCo: true,
+                accel: true,
+                ml: false,
+                desc: 'Cryptographic zero-knowledge proof settlement layer for institutional OTC debt issuance and KYC compliance.',
+                sent: 0.74,
+                eng: 64.0
+            }
+        ];
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast-notice');
+            document.getElementById('toast-message').innerText = msg;
+            document.getElementById('toast-icon').innerText = isError ? '⚠' : '✔';
+            toast.style.borderColor = isError ? 'var(--accent-rose)' : 'var(--accent-cyan)';
+            toast.style.display = 'flex';
+            setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        }
+
         function switchWindow(target) {
             document.querySelectorAll('.window-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.window-pane').forEach(p => p.classList.remove('active'));
@@ -1693,6 +2082,7 @@ HTML_PAGE = """<!DOCTYPE html>
                 document.getElementById('window-pipeline').classList.add('active');
                 runPipelineAllocation();
             }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function jumpToStep(stepNum) {
@@ -1733,8 +2123,27 @@ HTML_PAGE = """<!DOCTYPE html>
             const exit = parseFloat(document.getElementById('target-exit').value);
             document.getElementById('check-val').innerText = '$' + check.toFixed(2) + 'M';
             document.getElementById('exit-val').innerText = '$' + exit.toFixed(1) + 'M';
+            
+            // Live Hurdle Calculation
             const hurdle = (check / exit) * 100;
+            const multiple = exit / check;
             document.getElementById('hurdle-preview').innerText = hurdle.toFixed(1) + '%';
+            document.getElementById('multiple-preview').innerText = multiple.toFixed(1) + 'x';
+            
+            const regimeBadge = document.getElementById('hurdle-regime-badge');
+            if (hurdle <= 5.0) {
+                regimeBadge.innerText = '🟢 Ultra-Low Hurdle (Low Friction)';
+                regimeBadge.style.color = 'var(--accent-emerald)';
+            } else if (hurdle <= 10.0) {
+                regimeBadge.innerText = '🔵 Standard Venture Hurdle';
+                regimeBadge.style.color = 'var(--accent-cyan)';
+            } else if (hurdle <= 18.0) {
+                regimeBadge.innerText = '🟡 Elevated Hurdle (High Risk)';
+                regimeBadge.style.color = 'var(--accent-amber)';
+            } else {
+                regimeBadge.innerText = '🔴 Stringent Hurdle (>18%)';
+                regimeBadge.style.color = 'var(--accent-rose)';
+            }
         }
 
         function updateSentimentSliders() {
@@ -1853,6 +2262,36 @@ HTML_PAGE = """<!DOCTYPE html>
             }
             updateSliders();
             updateSentimentSliders();
+            showToast(`Loaded archetype: ${document.getElementById('startup-name').value}`);
+        }
+
+        function loadRandomDeal() {
+            const rand = RANDOM_CATALOG[Math.floor(Math.random() * RANDOM_CATALOG.length)];
+            document.getElementById('startup-name').value = rand.name;
+            document.getElementById('market-category').value = rand.category;
+            document.getElementById('business-model').value = rand.model;
+            document.getElementById('country-code').value = rand.country;
+            document.getElementById('city-hub').value = rand.city;
+            document.getElementById('check-size').value = rand.check;
+            document.getElementById('target-exit').value = rand.exit;
+            document.getElementById('funding-rounds').value = rand.rounds;
+            document.getElementById('repeat-investors').value = rand.repeat;
+            document.getElementById('team-size').value = rand.team;
+            document.getElementById('female-ratio').value = rand.female;
+            document.getElementById('senior-leadership').value = rand.execs;
+            document.getElementById('top-company').checked = rand.topCo;
+            document.getElementById('accelerator-backer').checked = rand.accel;
+            document.getElementById('ml-based').checked = rand.ml;
+            document.getElementById('venture-description').value = rand.desc;
+            document.getElementById('hn-sentiment').value = rand.sent;
+            document.getElementById('hn-engagement').value = rand.eng;
+            updateSliders();
+            updateSentimentSliders();
+            showToast(`Generated: ${rand.name}`);
+        }
+
+        function instantUnderwrite() {
+            document.getElementById('underwriting-form').dispatchEvent(new Event('submit'));
         }
 
         document.getElementById('underwriting-form').addEventListener('submit', async function(e) {
@@ -1893,39 +2332,79 @@ HTML_PAGE = """<!DOCTYPE html>
                 currentVerdictData = data;
                 renderVerdict(data);
                 switchWindow('memo');
+                showToast(`Underwriting Completed: ${data.verdict}`);
             } catch (err) {
-                alert('Evaluation error: ' + err.message);
+                showToast('Evaluation error: ' + err.message, true);
             } finally {
                 document.getElementById('modal-loading').style.display = 'none';
             }
         });
+
+        // SMOOTH NUMBER COUNTER ANIMATION
+        function animateCounter(elemId, targetVal, prefix = '', suffix = '', decimals = 1, duration = 400) {
+            const el = document.getElementById(elemId);
+            if (!el) return;
+            const startTime = performance.now();
+            const startVal = 0;
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // Ease out quad
+                const ease = 1 - (1 - progress) * (1 - progress);
+                const current = startVal + (targetVal - startVal) * ease;
+                el.innerText = `${prefix}${current.toFixed(decimals)}${suffix}`;
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    el.innerText = `${prefix}${targetVal.toFixed(decimals)}${suffix}`;
+                }
+            }
+            requestAnimationFrame(update);
+        }
 
         function renderVerdict(data) {
             document.getElementById('memo-title').innerText = data.idea.name;
             const cityText = data.idea.city ? `${data.idea.city}, ` : '';
             document.getElementById('memo-subtitle').innerText = `${data.idea.market_category.toUpperCase()} • ${data.idea.business_model} • ${cityText}${data.idea.country_code} • ${data.backdrop_evaluation.backdrop_alignment} MACRO ALIGNMENT`;
 
+            // Dynamic Hero Card Accent
+            const heroCard = document.getElementById('memo-hero-card');
+            heroCard.classList.remove('border-invest', 'border-review', 'border-reject');
             const badge = document.getElementById('memo-verdict-badge');
             badge.innerText = data.verdict;
-            badge.className = 'badge-verdict ' + (data.verdict === 'INVEST' ? 'badge-invest' : (data.verdict === 'REVIEW' ? 'badge-review' : 'badge-reject'));
+            if (data.verdict === 'INVEST') {
+                badge.className = 'badge-verdict badge-invest';
+                heroCard.classList.add('border-invest');
+            } else if (data.verdict === 'REVIEW') {
+                badge.className = 'badge-verdict badge-review';
+                heroCard.classList.add('border-review');
+            } else {
+                badge.className = 'badge-verdict badge-reject';
+                heroCard.classList.add('border-reject');
+            }
 
-            // KPIs
-            const probPct = (data.calibrated_probability * 100).toFixed(1);
-            const hurdlePct = (data.economic_threshold * 100).toFixed(1);
-            document.getElementById('memo-prob').innerText = probPct + '%';
-            document.getElementById('memo-hurdle').innerText = hurdlePct + '%';
-            document.getElementById('memo-emv').innerText = (data.expected_monetary_value_m >= 0 ? '+$' : '-$') + Math.abs(data.expected_monetary_value_m).toFixed(2) + 'M';
+            // KPIs with smooth counters
+            const probPct = data.calibrated_probability * 100;
+            const hurdlePct = data.economic_threshold * 100;
+            animateCounter('memo-prob', probPct, '', '%', 1);
+            animateCounter('memo-hurdle', hurdlePct, '', '%', 1);
+            
+            const emvVal = data.expected_monetary_value_m;
+            animateCounter('memo-emv', Math.abs(emvVal), emvVal >= 0 ? '+$' : '-$', 'M', 2);
             document.getElementById('memo-emv-sub').innerText = `Check: $${data.check_size_m.toFixed(2)}M | Exit: $${data.target_exit_m.toFixed(1)}M`;
-            document.getElementById('memo-exit-rate').innerText = data.retrieval_result.empirical_exit_percentage;
+            
+            const exitRateNum = parseFloat(data.retrieval_result.empirical_exit_percentage.replace('%', ''));
+            animateCounter('memo-exit-rate', exitRateNum, '', '%', 1);
             document.getElementById('memo-exit-count').innerText = `${data.retrieval_result.exits_count} of ${data.retrieval_result.top_k} Exited (M&A/IPO)`;
 
             // Dual Gauge
-            document.getElementById('memo-gauge-fill').style.width = probPct + '%';
-            document.getElementById('memo-gauge-marker').style.left = Math.min(98, Math.max(2, parseFloat(hurdlePct))) + '%';
-            document.getElementById('memo-gauge-hurdle-txt').innerText = 'Hurdle: ' + hurdlePct + '%';
+            document.getElementById('memo-gauge-fill').style.width = probPct.toFixed(1) + '%';
+            document.getElementById('memo-gauge-marker').style.left = Math.min(98, Math.max(2, hurdlePct)) + '%';
+            document.getElementById('memo-gauge-hurdle-txt').innerText = 'Hurdle: ' + hurdlePct.toFixed(1) + '%';
             const spread = (data.calibrated_probability - data.economic_threshold) * 100;
             const spreadLabel = document.getElementById('memo-gauge-spread');
-            spreadLabel.innerText = (spread >= 0 ? '+' : '') + spread.toFixed(1) + '% Hurdle Spread (' + (spread >= 0 ? 'Positive Safety Margin' : 'Negative EMV') + ')';
+            spreadLabel.innerText = (spread >= 0 ? '+' : '') + spread.toFixed(1) + '% Hurdle Spread (' + (spread >= 0 ? 'Positive Safety Margin' : 'Negative EMV Deficit') + ')';
             spreadLabel.style.color = spread >= 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)';
 
             // Render Precedent Deck in Workbench A
@@ -1947,8 +2426,8 @@ HTML_PAGE = """<!DOCTYPE html>
                         </div>
                         <div style="display: flex; align-items: center; gap: 0.8rem;">
                             <span class="tag-pill ${tagClass}">${tagText}</span>
-                            <div style="font-family: 'JetBrains Mono'; font-weight: 700; color: var(--accent-cyan); font-size: 0.9rem;">
-                                ${p.similarity_percentage} <span style="font-size: 0.7rem; color: var(--text-muted);">match</span>
+                            <div style="font-family: 'JetBrains Mono'; font-weight: 800; color: var(--accent-cyan); font-size: 0.95rem;">
+                                ${p.similarity_percentage} <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 400;">match</span>
                             </div>
                         </div>
                     </div>
@@ -2020,7 +2499,7 @@ HTML_PAGE = """<!DOCTYPE html>
             const ctx = document.getElementById('wbRadarCanvas').getContext('2d');
             const comps = precedent.component_attributions || {};
 
-            const labels = ['Sector', 'Business Model', 'Geography', 'Capital Scale', 'Founder Pedigree'];
+            const labels = ['Sector Match', 'Business Model', 'Geography', 'Capital Scale', 'Team Pedigree'];
             const targetData = [100, 100, 100, 100, 100];
             const precedentData = [
                 Math.round((comps.industry || 0.85) * 100),
@@ -2043,23 +2522,26 @@ HTML_PAGE = """<!DOCTYPE html>
                             label: currentVerdictData.idea.name + ' (Target)',
                             data: targetData,
                             borderColor: '#06b6d4',
-                            backgroundColor: 'rgba(6, 182, 212, 0.2)',
+                            backgroundColor: 'rgba(6, 182, 212, 0.22)',
                             borderWidth: 2,
-                            pointBackgroundColor: '#06b6d4'
+                            pointBackgroundColor: '#06b6d4',
+                            pointHoverRadius: 6
                         },
                         {
                             label: precedent.company_name + ' (Analogue)',
                             data: precedentData,
                             borderColor: precedent.is_exit === 1 ? '#10b981' : '#f43f5e',
-                            backgroundColor: precedent.is_exit === 1 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+                            backgroundColor: precedent.is_exit === 1 ? 'rgba(16, 185, 129, 0.18)' : 'rgba(244, 63, 94, 0.18)',
                             borderWidth: 2,
-                            pointBackgroundColor: precedent.is_exit === 1 ? '#10b981' : '#f43f5e'
+                            pointBackgroundColor: precedent.is_exit === 1 ? '#10b981' : '#f43f5e',
+                            pointHoverRadius: 6
                         }
                     ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: { duration: 400, easing: 'easeOutQuart' },
                     scales: {
                         r: {
                             angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
@@ -2073,7 +2555,7 @@ HTML_PAGE = """<!DOCTYPE html>
                     },
                     plugins: {
                         legend: {
-                            labels: { color: '#f8fafc', font: { size: 11 } }
+                            labels: { color: '#f8fafc', font: { size: 11, family: 'Plus Jakarta Sans' } }
                         }
                     }
                 }
@@ -2085,7 +2567,7 @@ HTML_PAGE = """<!DOCTYPE html>
             const exits = [10.0, 25.0, 50.0, 100.0];
 
             let tableHTML = '<thead><tr><th>Check Size</th>';
-            exits.forEach(e => { tableHTML += `<th>$${e}M Exit</th>`; });
+            exits.forEach(e => { tableHTML += `<th>$${e}M Exit (${(e/1.0).toFixed(0)}x baseline)</th>`; });
             tableHTML += '</tr></thead><tbody>';
 
             checks.forEach(c => {
@@ -2102,9 +2584,9 @@ HTML_PAGE = """<!DOCTYPE html>
                     if (isCurrent) cellClass += ' matrix-active-cell';
 
                     tableHTML += `
-                        <td class="${cellClass}" title="Hurdle: ${(hurdle*100).toFixed(1)}% | EMV: $${emv.toFixed(2)}M">
+                        <td class="${cellClass}" title="Breakeven Hurdle: ${(hurdle*100).toFixed(1)}% | Multiple: ${(e/c).toFixed(1)}x">
                             ${emv >= 0 ? '+$' : '-$'}${Math.abs(emv).toFixed(1)}M<br>
-                            <span style="font-size: 0.7rem; opacity: 0.85;">p* ${(hurdle*100).toFixed(0)}%</span>
+                            <span style="font-size: 0.72rem; opacity: 0.85;">p* ${(hurdle*100).toFixed(0)}% • ${(e/c).toFixed(0)}x</span>
                         </td>
                     `;
                 });
@@ -2162,19 +2644,21 @@ HTML_PAGE = """<!DOCTYPE html>
                         label: 'Simulated Probability (%)',
                         data: distribution,
                         borderColor: '#06b6d4',
-                        backgroundColor: 'rgba(6, 182, 212, 0.15)',
+                        backgroundColor: 'rgba(6, 182, 212, 0.18)',
                         fill: true,
                         tension: 0.35,
-                        pointRadius: 3
+                        pointRadius: 4,
+                        pointBackgroundColor: '#06b6d4'
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: { duration: 350 },
                     plugins: { legend: { display: false } },
                     scales: {
                         x: {
-                            ticks: { color: '#64748b', font: { size: 9 } },
+                            ticks: { color: '#64748b', font: { size: 9, family: 'JetBrains Mono' } },
                             grid: { display: false }
                         },
                         y: {
@@ -2211,9 +2695,34 @@ HTML_PAGE = """<!DOCTYPE html>
                 });
                 const resData = await response.json();
                 await navigator.clipboard.writeText(resData.markdown);
-                alert('Investment memorandum copied to clipboard in Markdown format!');
+                showToast('Investment memorandum copied to clipboard!');
             } catch (err) {
-                alert('Failed to copy memorandum: ' + err.message);
+                showToast('Failed to copy memorandum: ' + err.message, true);
+            }
+        }
+
+        async function downloadMarkdownFile() {
+            if (!currentVerdictData) return;
+            try {
+                const response = await fetch('/api/markdown_report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentVerdictData)
+                });
+                const resData = await response.json();
+                const blob = new Blob([resData.markdown], { type: 'text/markdown;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const filename = (currentVerdictData.idea.name || 'Startup').replace(/[^a-zA-Z0-9_-]/g, '_') + '_BCAPM_Memo.md';
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast(`Downloaded: ${filename}`);
+            } catch (err) {
+                showToast('Download failed: ' + err.message, true);
             }
         }
 
@@ -2261,7 +2770,7 @@ HTML_PAGE = """<!DOCTYPE html>
                 const isSelected = deal.selected;
                 const rowClass = isSelected ? 'row-allocated' : 'row-rejected';
                 const badgeClass = isSelected ? 'pipeline-badge-approved' : 'pipeline-badge-passed';
-                const badgeText = isSelected ? 'APPROVED & ALLOCATED' : 'PASSED / BUDGET CEILING';
+                const badgeText = isSelected ? 'APPROVED & ALLOCATED' : 'PASSED / CAPACITY CEILING';
 
                 tbody.innerHTML += `
                     <tr class="${rowClass}">
@@ -2270,9 +2779,9 @@ HTML_PAGE = """<!DOCTYPE html>
                         <td>${deal.market_category.toUpperCase()} • ${deal.business_model}</td>
                         <td style="font-family: 'JetBrains Mono';">$${deal.check_size_m.toFixed(2)}M</td>
                         <td style="font-family: 'JetBrains Mono';">$${deal.target_exit_m.toFixed(1)}M</td>
-                        <td style="font-family: 'JetBrains Mono'; color: var(--accent-cyan);">${(deal.probability * 100).toFixed(1)}%</td>
+                        <td style="font-family: 'JetBrains Mono'; color: var(--accent-cyan); font-weight: 700;">${(deal.probability * 100).toFixed(1)}%</td>
                         <td style="font-family: 'JetBrains Mono'; color: var(--text-muted);">${(deal.hurdle_rate * 100).toFixed(1)}%</td>
-                        <td style="font-family: 'JetBrains Mono'; font-weight: 700; color: ${deal.emv_m >= 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)'};">
+                        <td style="font-family: 'JetBrains Mono'; font-weight: 800; color: ${deal.emv_m >= 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)'};">
                             ${deal.emv_m >= 0 ? '+$' : '-$'}${Math.abs(deal.emv_m).toFixed(2)}M
                         </td>
                     </tr>
@@ -2312,22 +2821,34 @@ HTML_PAGE = """<!DOCTYPE html>
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: { duration: 400 },
                     scales: {
-                        x: { ticks: { color: '#94a3b8' }, grid: { display: false } },
+                        x: { ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans' } }, grid: { display: false } },
                         y: {
-                            ticks: { color: '#64748b' },
+                            ticks: { color: '#64748b', font: { family: 'JetBrains Mono' } },
                             grid: { color: 'rgba(255, 255, 255, 0.05)' }
                         }
                     },
                     plugins: {
-                        legend: { labels: { color: '#f8fafc', font: { size: 11 } } }
+                        legend: { labels: { color: '#f8fafc', font: { size: 11, family: 'Plus Jakarta Sans' } } }
                     }
                 }
             });
         }
 
-        // Auto-run evaluation on load to initialize Window 2
+        // KEYBOARD SHORTCUTS FOR POWER USERS
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                instantUnderwrite();
+            }
+        });
+
+        // Initialize sliders and state on load
         window.addEventListener('DOMContentLoaded', () => {
+            updateSliders();
+            updateSentimentSliders();
+            // Trigger initial evaluation so Window 2 has immediate ready data
             document.getElementById('underwriting-form').dispatchEvent(new Event('submit'));
         });
     </script>
@@ -2552,7 +3073,6 @@ def run_server(port: int = 8080):
 
 
 if __name__ == "__main__":
-    import os
     default_port = int(os.environ.get("PORT", 8080))
     parser = argparse.ArgumentParser(description="Run BCAPM interactive web validator server.")
     parser.add_argument("--port", type=int, default=default_port, help=f"HTTP port to serve on (default: {default_port})")
