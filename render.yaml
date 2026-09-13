@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: bcapm-terminal
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app/web_app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12

@@ -1,0 +1,59 @@
+# BCAPM Default System Configuration
+
+data:
+  master_v1_path: "data/interim/BCAPM_Master_V1.csv"
+  master_v2_path: "data/interim/BCAPM_Master_V2.csv"
+  clean_path: "data/processed/BCAPM_Clean.csv"
+  preprocessed_path: "data/processed/BCAPM_Preprocessed.csv"
+  outcome: "outcome_2_liquidity"
+  train_end_year: 2010
+  validation_start_year: 2011
+  validation_end_year: 2012
+  test_start_year: 2013
+
+precedent:
+  default_top_k: 5
+  weights:
+    industry: 0.35
+    business_model: 0.25
+    geography: 0.15
+    capital_scale: 0.15
+    team: 0.10
+
+decision:
+  default_investment_m: 1.0
+  default_payoff_m: 20.0
+  default_capacity_k: 10
+  default_fund_budget_m: 25.0
+  hurdle_mode: "top_k" # options: breakeven, top_k, budget
+
+scenarios:
+  active_scenario: "base"
+  profiles:
+    conservative:
+      description: "Low-multiple downside protection scenario"
+      multiples:
+        modest: { prob: 0.75, min: 1.2, max: 2.5 }
+        strong: { prob: 0.22, min: 3.0, max: 8.0 }
+        exceptional: { prob: 0.029, min: 10.0, max: 25.0 }
+        unicorn: { prob: 0.001, min: 30.0, max: 50.0 }
+    base:
+      description: "Standard venture capital return distribution"
+      multiples:
+        modest: { prob: 0.60, min: 1.5, max: 3.0 }
+        strong: { prob: 0.30, min: 5.0, max: 15.0 }
+        exceptional: { prob: 0.09, min: 25.0, max: 60.0 }
+        unicorn: { prob: 0.01, min: 100.0, max: 250.0 }
+    aggressive:
+      description: "Heavy-tailed power-law outlier scenario"
+      multiples:
+        modest: { prob: 0.50, min: 1.5, max: 4.0 }
+        strong: { prob: 0.32, min: 8.0, max: 20.0 }
+        exceptional: { prob: 0.15, min: 30.0, max: 80.0 }
+        unicorn: { prob: 0.03, min: 100.0, max: 500.0 }
+
+simulation:
+  monte_carlo_iterations: 1000
+  bootstrap_resamples: 1000
+  risk_free_rate: 0.03
+  random_seed: 42

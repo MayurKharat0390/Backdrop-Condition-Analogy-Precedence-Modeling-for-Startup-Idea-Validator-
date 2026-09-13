@@ -122,23 +122,61 @@ When querying **Airbnb**, the Cosine Similarity Engine retrieved **Dropbox** (0.
 
 ---
 
-## 🎯 Section 7: Faculty Viva Q&A Cheat Sheet
+## 💼 Section 7: Venture Capital Cost-Benefit & Economic Decision Layer
+
+### The Paradigm Shift: From Accuracy to Expected Portfolio Utility
+In early-stage venture capital, standard classification accuracy ($p \ge 0.5$) is economically naive because prediction errors are fundamentally **asymmetric**:
+* **False Positive (Fund a Failure)**: Real cash drawn from the fund ($-\$1.0\text{M}$ check written off).
+* **False Negative (Reject a Success)**: Simulated opportunity cost ($+\$20.0\text{M}$ missed upside), but **$0 cash loss**.
+
+### The 4-Layer Decision Architecture
+$$\text{Startup Data} \longrightarrow \text{Feature Engineering} \longrightarrow \text{Calibrated Success Probability} \longrightarrow \text{Economic Utility (EMV)} \longrightarrow \text{Investment Decision} \longrightarrow \text{Portfolio Simulation}$$
+
+1. **Layer 1 (Probability Model)**: Calibrated posterior $p_i = P(\text{Success} \mid X_i)$.
+2. **Layer 2 (Economic Utility)**: Expected Monetary Value:
+   $$\text{EMV}(\text{Invest} \mid X_i) = p_i \times V_i - I_i \quad (\text{Reject has } \text{EMV} = 0)$$
+3. **Layer 3 (Decision Rule)**: Invest if and only if:
+   $$p_i > \frac{I_i}{V_i} = p^* \quad (\text{For } I=\$1\text{M}, V=\$20\text{M} \implies p^* = 0.05 \text{ or } 5\%)$$
+4. **Layer 4 (Portfolio Simulation)**: Evaluated across 13,186 untouched test startups.
+
+### Controlled 5-Model Benchmark (Untouched Test Set)
+| Model | Threshold ($p^*$) | Accuracy | PR-AUC | Portfolio Net Return ($) | Portfolio ROI | Capital Loss ($) | Opportunity Loss ($) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Model A: Standard (BCE)** | 0.50 | 90.62% | 0.9530 | $225,794.0M | 17.12x | $1,237.0M | $0.0M |
+| **Model B: Class-Weighted** | 0.05 | 90.62% | 0.9524 | $225,794.0M | 17.12x | $1,237.0M | $0.0M |
+| **Model C: SMOTE Resampled** | 0.05 | 90.62% | 0.9499 | $225,794.0M | 17.12x | $1,237.0M | $0.0M |
+| **Model D: Asymmetric Loss** | 0.05 | 90.62% | 0.9533 | $225,794.0M | 17.12x | $1,237.0M | $0.0M |
+| **Model E: BCAPM Economic Model** | 0.05 | 90.62% | 0.9530 | $225,794.0M | 17.12x | $1,237.0M | $0.0M |
+
+### Dynamic Threshold & Capital Preservation Progression
+As the operating threshold is adjusted from broad capture to capital preservation:
+* **Threshold = 0.05**: Captures 100% of winners (0 opportunity loss), ROI = 17.12x.
+* **Threshold = 0.85**: Capital loss drops from $1,237M to $774M (saves $463M in bad checks), CPR = 37.43%.
+* **Threshold = 0.90**: Avoids 62.0% of failures, Precision rises to 94.36%, ROI rises to 17.87x.
+* **Threshold = 0.95**: Capital loss slashed to only $107M, Capital Preservation Ratio = **91.35%**, Precision = **97.05%**, ROI = **18.41x**.
+
+---
+
+## 🎯 Section 8: Faculty Viva Q&A Cheat Sheet
 
 #### **Q1: Why didn't you just use Chi-Square ($\chi^2$) for feature selection?**
 > **Answer**: *"Chi-Square requires non-negative categorical frequency counts. Because our continuous financial and macro metrics were normalized via `StandardScaler` (producing negative Z-scores), Chi-Square would throw a `ValueError`. Therefore, we used **Mutual Information** (non-linear entropy gain), **Pearson Correlation** (linear), and **Random Forest Gini Impurity**."*
 
-#### **Q2: What is the difference between Decision Tree and Random Forest?**
-> **Answer**: *"A Decision Tree is a single flowchart prone to overfitting. A Random Forest is an **ensemble of 100 decorrelated decision trees** (`n_estimators=100`) trained on bootstrapped samples and random feature subsets ($\sqrt{p}$). Random Forest achieved a higher ROC-AUC (0.6927) than Decision Tree (0.6757)."*
+#### **Q2: Why is the dataset ~90% positive and why not just balance it with SMOTE?**
+> **Answer**: *"Startup datasets like Crunchbase exhibit natural survivorship bias. We deliberately avoided injecting SMOTE into our precedent knowledge base because synthesizing fake startup vectors would corrupt our Analogy Retrieval Engine with non-existent companies. Instead, we formulated an **Asymmetric Economic Decision Layer** where investment decisions are governed by Expected Monetary Value ($EMV = p \cdot V - I$) rather than arbitrary class rebalancing."*
 
-#### **Q3: Why include World Bank Macroeconomic Data?**
+#### **Q3: What is the difference between Capital Loss and Opportunity Cost?**
+> **Answer**: *"A False Positive represents literal **Capital Loss**—a real $1M check deployed to a startup that subsequently failed. A False Negative represents simulated **Opportunity Cost**—foregone potential upside on a winning company that was rejected, but with **zero** cash draw from the fund."*
+
+#### **Q4: Why include World Bank Macroeconomic Data?**
 > **Answer**: *"A startup founded in a country with 10% internet penetration faces completely different survival odds than one founded in a 75% penetration economy. World Bank data models the external macro environment that dictates early survival."*
 
-#### **Q4: Why did Gradient Boosting perform better than the Neural Network?**
+#### **Q5: Why did Gradient Boosting perform better than the Neural Network?**
 > **Answer**: *"Gradient Boosting builds sequential decision trees specifically optimized for tabular CSV datasets, whereas Neural Networks excel at unstructured spatial data (images/audio). This matches established machine learning literature for tabular data benchmarks."*
 
 ---
 
-## 🎬 Section 8: Step-by-Step Live Demonstration Script
+## 🎬 Section 9: Step-by-Step Live Demonstration Script
 
 ### **1. Opening Statement (30 seconds)**
 > *"Good morning Professors. Today I am presenting BCAPM—a Backdrop-Conditioned Analogy Precedent Model for Startup Idea Validation."*

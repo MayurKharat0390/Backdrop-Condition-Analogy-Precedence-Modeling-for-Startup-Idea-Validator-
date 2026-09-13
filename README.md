@@ -68,28 +68,38 @@ BCAMP/
 │   ├── merge_v2_report.txt
 │   ├── SelectedFeatures.csv
 │   ├── model_comparison.csv
-│   └── *.png                    # EDA charts (distribution, heatmap, histograms)
+│   ├── vc_model_comparison.csv     # 5-Model VC Economic Benchmark table
+│   ├── vc_threshold_sweep.csv      # Multi-threshold sweep (0.01 - 0.95)
+│   ├── vc_sensitivity_matrix.csv   # 2D Check Size x Payoff Sensitivity Matrix
+│   └── *.png                       # EDA & 10 VC Decision Visualizations
 │
-├── models/                      # Serialized trained ML model artifacts (.joblib)
-├── data/                        # Tiered data storage directory
-│   ├── raw/                     # Extracted raw CSV files from Final.zip
-│   ├── interim/                 # Staged master outputs (BCAPM_Master_V1, BCAPM_Master_V2)
-│   └── processed/               # Cleaned & ML-ready tensors (BCAPM_Clean, BCAPM_Preprocessed)
+├── models/                         # Serialized trained ML model artifacts (.joblib)
+├── data/                           # Tiered data storage directory
+│   ├── raw/                        # Extracted raw CSV files from Final.zip
+│   ├── interim/                    # Staged master outputs (BCAPM_Master_V1, BCAPM_Master_V2)
+│   └── processed/                  # Cleaned & ML-ready tensors (BCAPM_Clean, BCAPM_Preprocessed)
 │
-└── src/                         # Modular production-grade Python package
-    ├── config.py                # System paths, constants, and hyperparameters
-    ├── utils.py                 # String canonicalization, currency parsing & validation
-    ├── 01_collect_data.py       # Ingestion audit and schema report generation
-    ├── 02_merge_v1.py           # Entity resolution & micro-level startup merge
-    ├── 03_merge_v2.py           # Macroeconomic backdrop & World Bank indicator merge
-    ├── 04_clean_data.py         # Missing value imputation & type normalization
-    ├── 05_feature_engineering.py # Financial ratios, founder scores & climate indices
-    ├── 06_preprocessing.py      # One-hot encoding & continuous feature scaling
-    ├── 07_feature_selection.py  # Pearson, Mutual Info & Random Forest feature ranking
-    ├── 08_eda.py                # Exploratory data visualization suite
-    ├── 09_train_models.py       # Training Logistic Regression, DT, RF, Gradient Boosting & ANN
-    ├── 10_similarity_engine.py  # BCAPM Cosine Similarity Analogy Precedent Engine
-    └── similarity_engine.py    # Clean Python package import wrapper
+└── src/                            # Modular production-grade Python package
+    ├── config.py                   # System paths, constants, and hyperparameters
+    ├── utils.py                    # String canonicalization, currency parsing & validation
+    ├── economic_utility.py         # Expected Monetary Value (EMV) & Decision Rule Layer
+    ├── asymmetric_loss.py          # Asymmetric Cross-Entropy & Focal Loss objectives
+    ├── calibration.py              # Probability calibration (Platt/Isotonic) & Brier score
+    ├── portfolio_simulation.py     # VC fund accounting, ROI & opportunity loss simulation
+    ├── threshold_optimization.py   # Multi-threshold sweep & 2D sensitivity analysis
+    ├── evaluation.py               # Unified ML + Decision + Economic evaluator
+    ├── run_economic_experiment.py  # Master benchmark comparing Models A-E
+    ├── 01_collect_data.py          # Ingestion audit and schema report generation
+    ├── 02_merge_v1.py              # Entity resolution & micro-level startup merge
+    ├── 03_merge_v2.py              # Macroeconomic backdrop & World Bank indicator merge
+    ├── 04_clean_data.py            # Missing value imputation & type normalization
+    ├── 05_feature_engineering.py   # Financial ratios, founder scores & climate indices
+    ├── 06_preprocessing.py         # One-hot encoding & continuous feature scaling
+    ├── 07_feature_selection.py     # Pearson, Mutual Info & Random Forest feature ranking
+    ├── 08_eda.py                   # Exploratory data visualization suite
+    ├── 09_train_models.py          # Training Logistic Regression, DT, RF, Gradient Boosting & ANN
+    ├── 10_similarity_engine.py     # BCAPM Cosine Similarity Analogy Precedent Engine
+    └── similarity_engine.py        # Clean Python package import wrapper
 ```
 
 ---
