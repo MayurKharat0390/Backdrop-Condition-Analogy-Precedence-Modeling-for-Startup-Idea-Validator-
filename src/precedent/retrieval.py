@@ -35,21 +35,26 @@ class HistoricalPrecedentRetriever:
         logger.info(f"Loading historical precedent pool from {self.clean_path}...")
         df_clean = load_csv_file(self.clean_path)
         
-        # Load raw status from companies.csv to verify realized outcome
+        # Load raw status from companies.csv to verify realized outcome if available
         raw_comp_file = DATA_RAW_DIR / "D1" / "companies.csv"
-        df_raw = load_csv_file(raw_comp_file, usecols=['name', 'status'])
-        df_raw['clean_name'] = df_raw['name'].apply(canonicalize_name)
-        df_raw = df_raw.drop_duplicates(subset=['clean_name'])
-        
-        merged = pd.merge(df_clean, df_raw[['clean_name', 'status']], on='clean_name', how='left')
-        merged['status'] = merged['status'].fillna('operating').str.lower()
-        
-        # Filter pool to mature ventures with realized outcomes (Acquired, IPO, Closed)
-        # to ensure precedent outcomes are definitively known.
-        self.precedent_pool = merged[merged['status'].isin(['acquired', 'ipo', 'closed'])].copy().reset_index(drop=True)
-        
-        # Binary realized exit: 1 if acquired or IPO, 0 if closed
-        self.precedent_pool['is_exit'] = np.where(self.precedent_pool['status'].isin(['acquired', 'ipo']), 1, 0)
+        try:
+            if raw_comp_file.exists():
+                df_raw = load_csv_file(raw_comp_file, usecols=['name', 'status'])
+                df_raw['clean_name'] = df_raw['name'].apply(canonicalize_name)
+                df_raw = df_raw.drop_duplicates(subset=['clean_name'])
+                merged = pd.merge(df_clean, df_raw[['clean_name', 'status']], on='clean_name', how='left')
+                merged['status'] = merged['status'].fillna('operating').str.lower()
+                pool = merged[merged['status'].isin(['acquired', 'ipo', 'closed'])].copy().reset_index(drop=True)
+                pool['is_exit'] = np.where(pool['status'].isin(['acquired', 'ipo']), 1, 0)
+                self.precedent_pool = pool
+            else:
+                raise FileNotFoundError("companies.csv not found, using clean target_success fallback")
+        except Exception as e:
+            logger.warning(f"Using direct BCAPM_Clean target_success fallback ({e})")
+            pool = df_clean.copy().reset_index(drop=True)
+            pool['is_exit'] = pool['target_success'].astype(int)
+            pool['status'] = np.where(pool['is_exit'] == 1, 'acquired', 'closed')
+            self.precedent_pool = pool
         
         logger.info(f"Precedent pool initialized with {len(self.precedent_pool)} historical ventures with realized outcomes.")
 
